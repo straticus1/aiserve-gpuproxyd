@@ -8,8 +8,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: changeme
       POSTGRES_DB: gpuproxy
-      # Optimize PostgreSQL for PgBouncer
-      POSTGRES_INITDB_ARGS: "-c max_connections=100"
     command: >
       postgres
       -c max_connections=100
@@ -24,7 +22,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -41,6 +39,11 @@ services:
         condition: service_healthy
     environment:
       # Database connection
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: changeme
+      DB_NAME: gpuproxy
       DATABASES_HOST: postgres
       DATABASES_PORT: 5432
       DATABASES_USER: postgres
@@ -58,11 +61,11 @@ services:
       PGBOUNCER_LISTEN_PORT: 6432
       PGBOUNCER_AUTH_TYPE: md5
     ports:
-      - "6432:6432"
+      - "6432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "psql -h localhost -p 6432 -U postgres -d gpuproxy -c 'SELECT 1' || exit 1"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 5
     networks:
       - gpuproxy-net
@@ -74,7 +77,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
