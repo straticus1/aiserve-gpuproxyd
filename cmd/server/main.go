@@ -134,6 +134,7 @@ func main() {
 	authHandler := api.NewAuthHandler(authService)
 	billingHandler := api.NewBillingHandler(billingService)
 	gpuHandler := api.NewGPUHandler(gpuService, protocolHandler, lbService)
+	gpuPrefsHandler := api.NewGPUPreferencesHandler(db)
 	lbHandler := api.NewLoadBalancerHandler(lbService)
 	userHandler := api.NewUserHandler(db)
 	wsHandler := api.NewWebSocketHandler()
@@ -173,6 +174,17 @@ func main() {
 	protected.HandleFunc("/gpu/instances/{provider}/{instanceId}", gpuHandler.CreateInstance).Methods("POST")
 	protected.HandleFunc("/gpu/instances/{provider}/{instanceId}", gpuHandler.DestroyInstance).Methods("DELETE")
 	protected.HandleFunc("/gpu/proxy", gpuHandler.ProxyRequest).Methods("POST")
+
+	// GPU Preferences endpoints
+	protected.HandleFunc("/gpu/preferences", gpuPrefsHandler.GetPreferences).Methods("GET")
+	protected.HandleFunc("/gpu/preferences", gpuPrefsHandler.SetPreferences).Methods("POST")
+	protected.HandleFunc("/gpu/preferences/test", gpuPrefsHandler.TestSelection).Methods("POST")
+	protected.HandleFunc("/gpu/available", gpuPrefsHandler.GetAvailableGPUs).Methods("GET")
+	protected.HandleFunc("/gpu/groups", gpuPrefsHandler.GetGPUGroups).Methods("GET")
+	protected.HandleFunc("/gpu/classify", gpuPrefsHandler.ClassifyGPU).Methods("GET")
+
+	// Public GPU info endpoints (no auth required)
+	apiRouter.HandleFunc("/gpu/examples", gpuPrefsHandler.GetExamplePreferences).Methods("GET")
 
 	protected.HandleFunc("/loadbalancer/loads", lbHandler.GetLoads).Methods("GET")
 	protected.HandleFunc("/loadbalancer/load", lbHandler.GetInstanceLoad).Methods("GET")

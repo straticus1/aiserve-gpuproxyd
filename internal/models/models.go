@@ -78,6 +78,15 @@ type BillingTransaction struct {
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 }
 
+type UserGPUPreference struct {
+	ID            uuid.UUID `json:"id" db:"id"`
+	UserID        uuid.UUID `json:"user_id" db:"user_id"`
+	PreferencesJSON string  `json:"-" db:"preferences_json"` // JSON-encoded preferences
+	IsActive      bool      `json:"is_active" db:"is_active"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+}
+
 type PaymentPreference struct {
 	Type    string `json:"type"`
 	Network string `json:"network,omitempty"`

@@ -185,6 +185,19 @@ func (db *PostgresDB) Migrate() error {
 
 		`CREATE INDEX IF NOT EXISTS idx_credits_client_id ON credits(client_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_credits_date ON credits(date)`,
+
+		`CREATE TABLE IF NOT EXISTS user_gpu_preferences (
+			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			preferences_json JSONB NOT NULL,
+			is_active BOOLEAN DEFAULT TRUE,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(user_id, is_active)
+		)`,
+
+		`CREATE INDEX IF NOT EXISTS idx_user_gpu_prefs_user_id ON user_gpu_preferences(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_user_gpu_prefs_active ON user_gpu_preferences(user_id, is_active) WHERE is_active = TRUE`,
 	}
 
 	for _, query := range queries {
