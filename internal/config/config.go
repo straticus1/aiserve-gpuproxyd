@@ -88,9 +88,11 @@ type BillingConfig struct {
 }
 
 type GPUConfig struct {
-	VastAIAPIKey string
-	IONetAPIKey  string
-	Timeout      time.Duration
+	VastAIAPIKey      string
+	IONetAPIKey       string
+	Timeout           time.Duration
+	AllowStartWithout bool   // Allow starting without external GPU providers
+	PreferredBackend  string // cuda, rocm, oneapi, or auto
 }
 
 type LoadBalancerConfig struct {
@@ -187,9 +189,11 @@ func Load() (*Config, error) {
 			CryptoNetworks:      []string{"ethereum", "bitcoin", "polygon"},
 		},
 		GPU: GPUConfig{
-			VastAIAPIKey: getEnv("VASTAI_API_KEY", ""),
-			IONetAPIKey:  getEnv("IONET_API_KEY", ""),
-			Timeout:      getEnvAsDuration("GPU_API_TIMEOUT", 30*time.Second),
+			VastAIAPIKey:      getEnv("VASTAI_API_KEY", ""),
+			IONetAPIKey:       getEnv("IONET_API_KEY", ""),
+			Timeout:           getEnvAsDuration("GPU_API_TIMEOUT", 30*time.Second),
+			AllowStartWithout: getEnvAsBool("GPU_ALLOW_START_WITHOUT_PROVIDERS", true),
+			PreferredBackend:  getEnv("GPU_PREFERRED_BACKEND", "auto"),
 		},
 		LoadBalancer: LoadBalancerConfig{
 			Strategy: getEnv("LB_STRATEGY", "round_robin"),
@@ -233,8 +237,12 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("JWT_SECRET must be set in production")
 	}
 
+	// Check GPU providers - warn but allow startup if GPU_ALLOW_START_WITHOUT_PROVIDERS=true
 	if c.GPU.VastAIAPIKey == "" && c.GPU.IONetAPIKey == "" {
-		return fmt.Errorf("at least one GPU provider API key must be configured")
+		if !c.GPU.AllowStartWithout {
+			return fmt.Errorf("at least one GPU provider API key must be configured (set GPU_ALLOW_START_WITHOUT_PROVIDERS=true to override)")
+		}
+		// Will detect local GPU backends at startup
 	}
 
 	validSessionModes := map[SessionMode]bool{

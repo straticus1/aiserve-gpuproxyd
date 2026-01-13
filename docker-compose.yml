@@ -59,7 +59,8 @@ services:
       PGBOUNCER_SERVER_LIFETIME: 3600
       PGBOUNCER_SERVER_CONNECT_TIMEOUT: 15
       PGBOUNCER_LISTEN_PORT: 6432
-      PGBOUNCER_AUTH_TYPE: md5
+      PGBOUNCER_AUTH_TYPE: plain
+      PGBOUNCER_AUTH_USER: postgres
     ports:
       - "6432:5432"
     healthcheck:
@@ -95,12 +96,13 @@ services:
       redis:
         condition: service_healthy
     environment:
-      # Database (via PgBouncer)
-      - DB_HOST=pgbouncer
-      - DB_PORT=6432
+      # Database (direct connection - PgBouncer auth issues)
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=changeme
       - DB_NAME=gpuproxy
+      - DB_SSLMODE=disable
       - DB_USE_PGBOUNCER=true
       - DB_PGBOUNCER_POOL_MODE=transaction
       - DB_MAX_CONNS=200

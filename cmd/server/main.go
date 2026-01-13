@@ -96,6 +96,23 @@ func main() {
 	}
 	defer redis.Close()
 
+	// Detect local GPU backends
+	log.Println("Detecting local GPU backends...")
+	backends := gpu.DetectBackends()
+	availableBackend := gpu.GetAvailableBackend(backends)
+
+	if availableBackend != gpu.BackendNone {
+		log.Printf("Local GPU backend available: %s", gpu.GetBackendInfo(backends))
+		log.Printf("Using local backend: %s (preferred: %s)", availableBackend, cfg.GPU.PreferredBackend)
+	} else {
+		if cfg.GPU.VastAIAPIKey != "" || cfg.GPU.IONetAPIKey != "" {
+			log.Println("No local GPU backend detected. Using cloud providers only.")
+		} else {
+			log.Println("WARNING: No local GPU backends and no cloud provider API keys configured.")
+			log.Println("Server will start but GPU operations will fail until providers are configured.")
+		}
+	}
+
 	authService := auth.NewService(db, redis, &cfg.Auth)
 	billingService := billing.NewService(db, &cfg.Billing)
 	gpuService := gpu.NewService(&cfg.GPU)
