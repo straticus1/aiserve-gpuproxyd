@@ -13,7 +13,8 @@ import (
 type contextKey string
 
 const (
-	UserContextKey contextKey = "user"
+	UserContextKey    contextKey = "user"
+	RequestIDKey      contextKey = "request_id"
 )
 
 type AuthMiddleware struct {

@@ -30,6 +30,7 @@ import (
 	"github.com/aiserve/gpuproxy/internal/kqml"
 	"github.com/aiserve/gpuproxy/internal/langchain"
 	"github.com/aiserve/gpuproxy/internal/logging"
+	"github.com/aiserve/gpuproxy/internal/metrics"
 	"github.com/aiserve/gpuproxy/internal/middleware"
 	grpcServer "github.com/aiserve/gpuproxy/internal/grpc"
 	"github.com/gorilla/mux"
@@ -148,17 +149,31 @@ func main() {
 	mcpHandler := api.NewMCPHandler(mcpServer)
 	agentHandler := api.NewAgentHandler(a2aServer, acpServer, cuicServer, fipaServer, kqmlServer, langchainServer)
 
+	// Initialize structured logger
+	logLevel := logging.INFO
+	if debugMode {
+		logLevel = logging.DEBUG
+	}
+	logging.InitStructuredLogger("gpuproxy", logLevel)
+
+	// Start metrics collection
+	m := metrics.GetMetrics()
+	m.StartCollection(context.Background())
+
 	router := mux.NewRouter()
 
 	router.Use(middleware.Recovery)
+	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.CORS)
 
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"status":"ok","timestamp":"%s"}`, time.Now().Format(time.RFC3339))
-	}).Methods("GET")
+	// Observability endpoints
+	observabilityHandler := api.NewObservabilityHandler(db, redis)
+	router.HandleFunc("/health", observabilityHandler.HandleHealth).Methods("GET")
+	router.HandleFunc("/metrics", observabilityHandler.HandleMetrics).Methods("GET")
+	router.HandleFunc("/stats", observabilityHandler.HandleStats).Methods("GET")
+	router.HandleFunc("/polling", observabilityHandler.HandlePolling).Methods("GET")
+	router.HandleFunc("/monitor", observabilityHandler.HandleMonitor).Methods("GET")
 
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
 

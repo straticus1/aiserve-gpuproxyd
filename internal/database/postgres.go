@@ -224,8 +224,7 @@ func (db *PostgresDB) Migrate() error {
 
 		// Session cleanup optimization
 		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sessions_expires_at_user
-			ON sessions(expires_at, user_id)
-			WHERE expires_at > NOW()`,
+			ON sessions(expires_at, user_id)`,
 
 		// GPU usage queries optimization
 		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_gpu_usage_user_start
