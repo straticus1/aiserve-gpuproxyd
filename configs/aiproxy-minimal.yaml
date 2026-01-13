@@ -1,0 +1,35 @@
+# AIProxy Minimal Configuration
+# Quick start for Cloudflare Workers AI integration
+
+node:
+  id: "local-node"
+  type: "standalone"
+
+server:
+  listen_addr: "0.0.0.0:8080"
+
+providers:
+  cloudflare:
+    enabled: true
+    priority: 1
+    credentials:
+      account_id: "${CLOUDFLARE_ACCOUNT_ID}"
+      api_token: "${CLOUDFLARE_API_TOKEN}"
+    models:
+      # Text generation
+      - name: "llama-3.1-8b"
+        cloudflare_model: "@cf/meta/llama-3.1-8b-instruct"
+        capabilities: ["text-generation"]
+        cost_per_1k_tokens: 0.001
+
+      # Code generation
+      - name: "qwen-coder"
+        cloudflare_model: "@cf/qwen/qwen2.5-coder-7b-instruct"
+        capabilities: ["code-generation"]
+        cost_per_1k_tokens: 0.001
+
+routing:
+  strategy: "cost_optimized"
+  failover:
+    enabled: true
+    max_retries: 3

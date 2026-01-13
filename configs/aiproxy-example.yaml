@@ -1,0 +1,219 @@
+# AIProxy Configuration Example
+# This demonstrates a production-ready configuration for aiserve-gpuproxyd
+# with Cloudflare Workers AI integration
+
+# Node identity and mesh configuration
+node:
+  id: "gpu-node-01"
+  name: "Primary GPU Node"
+  region: "us-west-2"
+  type: "hybrid"  # gpu, edge, cloud, hybrid, standalone
+
+  # Mesh networking (optional - for multi-node deployments)
+  mesh:
+    enabled: false
+    listen_addr: "0.0.0.0:9090"
+    peers: []
+    share_load: true
+    peer_timeout: 5s
+    heartbeat_interval: 10s
+
+# HTTP Server configuration
+server:
+  listen_addr: "0.0.0.0:8080"
+  read_timeout: 30s
+  write_timeout: 120s
+  max_request_size: "10MB"
+
+  # API endpoints (OpenAI-compatible + native)
+  endpoints:
+    - path: "/v1/chat/completions"
+      protocol: "openai"
+      enabled: true
+    - path: "/v1/embeddings"
+      protocol: "openai"
+      enabled: true
+    - path: "/v1/models"
+      protocol: "openai"
+      enabled: true
+    - path: "/aiproxy/predict"
+      protocol: "native"
+      enabled: true
+
+# Provider configurations
+providers:
+  # Local GPU provider
+  local:
+    type: "local"
+    enabled: true
+    priority: 1  # Try first (lowest = highest priority)
+
+    runtimes:
+      - onnx
+      - pytorch
+      - golearn
+
+    models:
+      - name: "llama-3-8b-local"
+        path: "/app/models/llama-3-8b.onnx"
+        runtime: "onnx"
+        capabilities: ["text-generation"]
+        cost_per_1k_tokens: 0.0  # Free - local compute
+
+  # Cloudflare Workers AI
+  cloudflare:
+    type: "cloudflare"
+    enabled: true
+    priority: 2
+
+    credentials:
+      account_id: "${CLOUDFLARE_ACCOUNT_ID}"
+      api_token: "${CLOUDFLARE_API_TOKEN}"
+
+    endpoint: "https://api.cloudflare.com/client/v4"
+
+    # Model mapping: local name -> Cloudflare model ID
+    models:
+      # Text generation models
+      - name: "llama-3.1-8b"
+        cloudflare_model: "@cf/meta/llama-3.1-8b-instruct"
+        capabilities: ["text-generation"]
+        cost_per_1k_tokens: 0.001
+
+      - name: "llama-4-scout"
+        cloudflare_model: "@cf/meta/llama-4-scout-17b-16e"
+        capabilities: ["text-generation", "vision"]
+        cost_per_1k_tokens: 0.002
+
+      - name: "qwen-coder"
+        cloudflare_model: "@cf/qwen/qwen2.5-coder-7b-instruct"
+        capabilities: ["code-generation", "text-generation"]
+        cost_per_1k_tokens: 0.001
+
+      - name: "qwq-reasoning"
+        cloudflare_model: "@cf/qwen/qwq-32b-preview"
+        capabilities: ["text-generation", "reasoning"]
+        cost_per_1k_tokens: 0.003
+
+      # Image generation
+      - name: "stable-diffusion-xl"
+        cloudflare_model: "@cf/stabilityai/stable-diffusion-xl-base-1.0"
+        capabilities: ["text-to-image"]
+        cost_per_generation: 0.01
+
+  # OpenAI (fallback)
+  openai:
+    type: "openai"
+    enabled: false  # Disabled by default - enable if you have API key
+    priority: 3
+
+    credentials:
+      api_key: "${OPENAI_API_KEY}"
+
+    endpoint: "https://api.openai.com/v1"
+
+    models:
+      - name: "gpt-4o"
+        openai_model: "gpt-4o"
+        capabilities: ["text-generation", "vision"]
+        cost_per_1k_tokens: 0.005
+
+      - name: "gpt-4o-mini"
+        openai_model: "gpt-4o-mini"
+        capabilities: ["text-generation"]
+        cost_per_1k_tokens: 0.0003
+
+# Routing engine configuration
+routing:
+  # Default routing strategy
+  strategy: "cost_optimized"  # cost_optimized, latency_optimized, availability, round_robin
+
+  # Routing policies (optional - for advanced routing)
+  policies:
+    - name: "minimize_cost"
+      type: "cost_optimized"
+      rules:
+        - if: "request.tokens < 1000"
+          then: "provider.priority ASC"
+        - if: "request.tokens >= 1000"
+          then: "provider.cost_per_1k_tokens ASC"
+
+  # Failover configuration
+  failover:
+    enabled: true
+    max_retries: 3
+    retry_delay: 1s
+    fallback_chain:
+      - "local"
+      - "cloudflare"
+      - "openai"
+
+  # Load balancing
+  load_balancing:
+    enabled: true
+    strategy: "least_loaded"  # round_robin, least_loaded, weighted
+    health_aware: true
+    unhealthy_threshold: 0.5  # Route away if error rate > 50%
+
+# Budget and cost controls
+budget:
+  enabled: false  # Set to true to enable cost tracking
+  daily_limit: 100.00  # USD
+  monthly_limit: 2000.00
+
+  track_costs: true
+  cost_db: "sqlite:///data/costs.db"
+
+  alerts:
+    - threshold: 80  # percent
+      action: "log"
+    - threshold: 95
+      action: "disable_paid_providers"
+
+# Observability
+observability:
+  logging:
+    level: "info"  # debug, info, warn, error
+    format: "json"
+    output: "stdout"
+
+  metrics:
+    enabled: true
+    prometheus_port: 9091
+    collect:
+      - request_count
+      - request_duration
+      - provider_errors
+      - cost_per_request
+      - tokens_processed
+
+  tracing:
+    enabled: false
+    provider: "jaeger"
+    endpoint: "http://jaeger:14268/api/traces"
+
+# Security
+security:
+  # Authentication
+  auth:
+    enabled: false  # Set to true in production
+    type: "api_key"  # api_key, jwt, oauth2
+
+    api_keys:
+      - key: "${AIPROXY_API_KEY}"
+        name: "production"
+        rate_limit: 1000  # requests/hour
+
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    default_limit: 100  # requests/hour
+    by_ip: true
+    by_api_key: true
+
+  # CORS
+  cors:
+    enabled: true
+    allowed_origins:
+      - "http://localhost:3000"
+      - "https://app.aiserve.farm"

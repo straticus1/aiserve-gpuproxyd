@@ -6,6 +6,16 @@ A high-performance GPU proxy and AI inference platform that aggregates GPU compu
 
 ## Features
 
+### AIProxy: Universal AI Workload Orchestration (NEW!)
+- **Intelligent Routing**: Automatically route to local GPU, Cloudflare Workers AI, OpenAI, or other providers
+- **Cost Optimization**: Choose cheapest provider while meeting latency/quality requirements
+- **High Availability**: Automatic failover across multiple providers and regions
+- **OpenAI-Compatible**: Drop-in replacement - works with existing OpenAI SDK code
+- **Cloudflare Integration**: 50+ edge models (Llama, Qwen, Stable Diffusion) at low cost
+- **Mesh Networking**: Federated deployment across multiple nodes with load sharing
+- **Budget Controls**: Daily/monthly spending limits with automatic alerts
+- See [AIProxy Getting Started](docs/AIPROXY_GETTING_STARTED.md) | [AIProxy Standard](docs/AIPROXY_STANDARD.md)
+
 ### AI Model & Inference Platform
 - **4 ML Runtimes**: ONNX (CPU/GPU), PyTorch converter, scikit-learn, GoLearn
 - **13 Model Formats**: ONNX, PyTorch (.pt/.pth), TensorFlow, Keras, scikit-learn, TensorRT, and more
