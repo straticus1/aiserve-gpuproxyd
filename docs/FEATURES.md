@@ -1,6 +1,8 @@
-# aiserve-gpuproxyd Feature List
+# AIServe.Farm Feature List
 
-Complete feature list and capabilities of the GPU Proxy platform.
+**AfterDark Systems (ADS) - GPU Proxy, AI Model, Inference, MCP, and Agent Platform**
+
+Complete feature list and capabilities of the AIServe.Farm platform.
 
 ## 🎯 Core Features
 

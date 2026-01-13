@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to AIServe.Farm will be documented in this file.
+
+**AIServe.Farm** - GPU Proxy, AI Model, Inference, MCP, and Agent Platform by AfterDark Systems (ADS)
 
 ## [1.0.1] - 2026-01-13
 

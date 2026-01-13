@@ -1,29 +1,65 @@
-# GPU Proxy
+# AIServe.Farm: GPU Proxy, AI Model, Inference, MCP, and Agent Platform
 
-A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farms with support for multiple protocols, payment methods, and comprehensive management tools.
+**By AfterDark Systems (ADS)**
+
+A high-performance GPU proxy and AI inference platform that aggregates GPU compute from vast.ai and io.net farms. Provides unified access to ML models through multiple protocols including MCP (Model Context Protocol), OpenAI-compatible APIs, gRPC, and WebSocket streaming. Built for AI agents, LLM applications, and enterprise ML workloads.
 
 ## Features
 
-- **Multi-Provider GPU Access**: Seamlessly access GPUs from vast.ai and io.net
-- **ML Runtime Support**: ONNX, PyTorch, TensorFlow, scikit-learn model serving with 4 runtimes
-- **OCI Object Storage**: Native Oracle Cloud Infrastructure storage integration (replaces AWS S3)
-- **Storage Quotas**: Per-user storage limits with hourly/daily upload rate limiting
-- **Load Balancing**: 5 strategies (Round Robin, Equal Weighted, Weighted Round Robin, Least Connections, Least Response Time)
-- **GPU Reservation**: Reserve up to 16 GPUs at once with automatic load balancing
-- **Protocol Support**: HTTP/HTTPS, gRPC, MCP (Model Context Protocol), and Open Inference Protocol
-- **Multiple Databases**: PostgreSQL or SQLite support with PgBouncer connection pooling
-- **Flexible Session Management**: Redis, SQL, or balanced mode
-- **Authentication**: JWT tokens and API keys with bcrypt hashing
-- **Payment Integration**: Stripe, Crypto, and AfterDark billing
-- **WebSocket Streaming**: Real-time GPU inference streaming
-- **Credit System**: Track usage, quotas, and credits per client
-- **Rate Limiting**: Configurable per-user rate limits
+### AI Model & Inference Platform
+- **4 ML Runtimes**: ONNX (CPU/GPU), PyTorch converter, scikit-learn, GoLearn
+- **13 Model Formats**: ONNX, PyTorch (.pt/.pth), TensorFlow, Keras, scikit-learn, TensorRT, and more
+- **Model Serving**: Upload, serve, and manage custom ML models
+- **Streaming Inference**: Real-time WebSocket inference with sub-10ms latency
+- **Training Platform**: Dataset upload, GPU rental, model registry (in development)
+
+### MCP & Agent Integration
+- **MCP Server**: Native Model Context Protocol support for Claude Desktop and AI assistants
+- **7 MCP Tools**: GPU management, billing, guardrails, proxy requests, transaction history
+- **Agent Protocols**: A2A, ACP, FIPA ACL, KQML, LangChain with unified agent endpoint
+- **Auto-Detection**: Automatic protocol detection and routing
+
+### GPU Compute Access
+- **Multi-Provider**: Seamlessly access GPUs from vast.ai and io.net farms
+- **1,000+ GPU Pool**: Support for massive parallel compute workloads
+- **Load Balancing**: 5 strategies (Round Robin, Weighted, Least Connections, Least Response Time)
+- **GPU Reservation**: Reserve up to 16 GPUs at once with automatic orchestration
+- **Hybrid Compute**: Local GPU bootstrap with cloud GPU burst capacity
+
+### Enterprise Infrastructure
+- **OCI Object Storage**: Native Oracle Cloud Infrastructure storage integration
+- **Storage Quotas**: Per-user limits (100GB default, 1TB premium) with rate limiting
+- **PgBouncer Pooling**: 200 connections → 20 actual DB connections, supports 100k+ concurrent users
+- **Redis Caching**: Session management, rate limiting, guard rails
+- **PostgreSQL/SQLite**: Flexible database support with automatic migrations
+
+### Security & Authentication
+- **JWT Tokens**: Secure authentication with configurable expiration
+- **API Keys**: Bcrypt-hashed API keys for service-to-service auth
 - **Guard Rails**: Spending control across 17 time windows (5min to 72h)
-- **Agent Protocols**: MCP, A2A, ACP, FIPA ACL, KQML, and LangChain support
-- **Centralized Logging**: Syslog support with file logging and AISERVE_LOG_FILE
-- **CLI Tools**: Advanced client with load monitoring and admin utility
-- **Developer Mode**: Enhanced debugging and development features
-- **Production Hardened**: Memory safety fixes, goroutine lifecycle management, panic recovery
+- **Rate Limiting**: Per-user request throttling
+- **Memory Safe**: Fixed ONNX double-free, goroutine lifecycle management, panic recovery
+
+### Payment & Billing
+- **AfterDark Billing**: Native integration with AfterDark Systems billing platform
+- **Stripe**: Credit card payments with webhook support
+- **Cryptocurrency**: Crypto payment support
+- **Credit System**: Track usage, quotas, and credits per client
+- **Transaction History**: Complete audit trail of all charges
+
+### Protocol Support
+- **HTTP/HTTPS**: RESTful API with JSON
+- **gRPC**: High-performance RPC with protobuf
+- **WebSocket**: Real-time streaming for inference and monitoring
+- **MCP**: Model Context Protocol for AI assistants
+- **Open Inference Protocol**: Standard ML inference interface
+
+### Operations & Management
+- **3 CLI Tools**: Server daemon, client CLI, admin utility
+- **Syslog Integration**: Remote logging with TCP/UDP/Unix socket support
+- **Developer Mode**: Enhanced debugging with verbose logging
+- **Health Checks**: Endpoint monitoring and system status
+- **Graceful Shutdown**: Clean resource cleanup on termination
 
 ## Architecture
 
@@ -1039,3 +1075,5 @@ Contributions welcome! Please submit pull requests or open issues.
 For issues and questions:
 - GitHub Issues: https://github.com/straticus1/aiserve-gpuproxyd/issues
 - Documentation: https://github.com/straticus1/aiserve-gpuproxyd/wiki
+- Website: https://aiserve.farm
+- AfterDark Systems: https://afterdarksys.com
