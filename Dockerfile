@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Use GOTOOLCHAIN=auto to allow Go to download the required version
 ENV GOTOOLCHAIN=auto

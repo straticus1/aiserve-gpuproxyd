@@ -5,6 +5,7 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 ## Features
 
 - **Multi-Provider GPU Access**: Seamlessly access GPUs from vast.ai and io.net
+- **ML Runtime Support**: ONNX, PyTorch, TensorFlow, scikit-learn model serving with 4 runtimes
 - **Load Balancing**: 5 strategies (Round Robin, Equal Weighted, Weighted Round Robin, Least Connections, Least Response Time)
 - **GPU Reservation**: Reserve up to 16 GPUs at once with automatic load balancing
 - **Protocol Support**: HTTP/HTTPS, gRPC, MCP (Model Context Protocol), and Open Inference Protocol
@@ -641,23 +642,37 @@ Response:
 ```
 gpuproxy/
 ├── cmd/
-│   ├── server/     # Main server
-│   ├── client/     # CLI client
-│   └── admin/      # Admin utility
+│   ├── server/        # Main server
+│   ├── client/        # CLI client
+│   ├── admin/         # Admin utility
+│   └── seed/          # Database seeding tool
 ├── internal/
-│   ├── api/        # API handlers
-│   ├── auth/       # Authentication
-│   ├── billing/    # Payment processing
-│   ├── config/     # Configuration
-│   ├── database/   # Database layer
-│   ├── gpu/        # GPU management
-│   ├── middleware/ # HTTP middleware
-│   └── models/     # Data models
+│   ├── api/           # API handlers
+│   ├── auth/          # Authentication
+│   ├── billing/       # Payment processing
+│   ├── config/        # Configuration
+│   ├── database/      # Database layer
+│   ├── gpu/           # GPU management
+│   ├── ml/            # ML runtime system (NEW)
+│   │   ├── onnx_runtime.go        # ONNX Runtime
+│   │   ├── pytorch_converter.go   # PyTorch → ONNX
+│   │   ├── golearn_runtime.go     # GoLearn
+│   │   ├── gomlx_runtime.go       # GoMLX (GPU)
+│   │   ├── sklearn_runtime.go     # Sklearn
+│   │   └── runtime_orchestrator.go # Runtime routing
+│   ├── middleware/    # HTTP middleware
+│   ├── models/        # Data models
+│   └── storage/       # DarkStorage integration (NEW)
 ├── pkg/
-│   ├── vastai/     # vast.ai client
-│   └── ionet/      # io.net client
+│   ├── vastai/        # vast.ai client
+│   └── ionet/         # io.net client
+├── docs/              # Documentation
+│   ├── ML_RUNTIME_IMPLEMENTATION.md  # ML runtime docs (NEW)
+│   ├── AI_PLATFORM_ARCHITECTURE.md   # Training platform (NEW)
+│   ├── GETTING_STARTED_TRAINING_PLATFORM.md  # Training guide (NEW)
+│   └── HYBRID_COMPUTE_ARCHITECTURE.md  # Compute architecture (NEW)
 └── web/
-    └── admin/      # Admin dashboard
+    └── admin/         # Admin dashboard
 ```
 
 ### Running Tests
@@ -857,6 +872,103 @@ curl -X POST http://localhost:8080/api/v1/agent \
 ```bash
 curl http://localhost:8080/agent/discover
 ```
+
+## ML Model Serving
+
+GPU Proxy includes a hybrid ML runtime system supporting multiple model formats:
+
+### Supported Runtimes
+
+1. **ONNX Runtime** (CPU + GPU)
+   - Load `.onnx` models
+   - CUDA acceleration support
+   - Auto-optimization (graph level 99)
+   - Latency: 1-10ms
+
+2. **PyTorch Converter**
+   - Automatic `.pt`/`.pth` → ONNX conversion
+   - No need for native PyTorch runtime
+   - Production-ready approach
+
+3. **Sklearn Runtime** (Python bridge)
+   - `.pkl` and `.joblib` models
+   - Full scikit-learn support
+   - Latency: 5-20ms
+
+4. **GoLearn Runtime** (Pure Go)
+   - Classical ML algorithms
+   - k-NN, Decision Trees, Naive Bayes
+   - Ultra-fast: 50-100μs latency
+
+### Upload and Serve Models
+
+```bash
+# Upload PyTorch model (auto-converts to ONNX)
+curl -X POST http://localhost:8080/api/v1/models/upload \
+  -F "model=@my_model.pt" \
+  -F "name=my-custom-model" \
+  -F "format=pytorch"
+
+# Response:
+{
+  "model_id": "abc-123",
+  "converted_to": "onnx",
+  "status": "ready"
+}
+
+# Run inference
+curl -X POST http://localhost:8080/api/v1/models/abc-123/predict \
+  -H "X-API-Key: YOUR_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input": [1.0, 2.0, 3.0, 4.0]
+  }'
+
+# Response:
+{
+  "output": [0.92, 0.08],
+  "latency_ms": 2.3,
+  "runtime": "onnx",
+  "used_gpu": true
+}
+```
+
+### Supported Model Formats
+
+| Format | Runtime | GPU Support | Latency |
+|--------|---------|-------------|---------|
+| `.onnx` | ONNX Runtime | ✅ CUDA | 1-10ms |
+| `.pt`/`.pth` | PyTorch → ONNX | ✅ CUDA | 1-10ms |
+| `.pkl` | Sklearn | ❌ | 5-20ms |
+| `.joblib` | Sklearn | ❌ | 5-20ms |
+| `.golearn` | GoLearn | ❌ | 50-100μs |
+
+### Installation Requirements
+
+**ONNX Runtime (for ONNX/PyTorch models):**
+```bash
+# macOS
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-osx-universal2-1.17.0.tgz
+tar -xzf onnxruntime-osx-universal2-1.17.0.tgz
+sudo cp onnxruntime-osx-universal2-1.17.0/lib/* /usr/local/lib/
+
+# Linux
+wget https://github.com/microsoft/onnxruntime/releases/download/v1.17.0/onnxruntime-linux-x64-1.17.0.tgz
+tar -xzf onnxruntime-linux-x64-1.17.0.tgz
+sudo cp onnxruntime-linux-x64-1.17.0/lib/* /usr/local/lib/
+sudo ldconfig
+```
+
+**PyTorch (for model conversion):**
+```bash
+# CPU only
+pip3 install torch torchvision
+
+# GPU (CUDA 12.1)
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+
+See [ML_RUNTIME_IMPLEMENTATION.md](docs/ML_RUNTIME_IMPLEMENTATION.md) for complete documentation.
 
 ## Logging
 

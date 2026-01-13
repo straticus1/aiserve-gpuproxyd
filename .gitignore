@@ -1,0 +1,37 @@
+# Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test and local config files
+.env
+.local_admin
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build artifacts
+dist/
+build/
+
+# Certificates
+*.pem
+*.key
+*.crt
+server.key
+server.crt

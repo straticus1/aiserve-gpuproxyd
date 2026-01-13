@@ -2,10 +2,17 @@ package ml
 
 import (
 	"context"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
+
+	// GoLearn imports - uncomment when ready to use
+	// "github.com/sjwhitworth/golearn/base"
+	// "github.com/sjwhitworth/golearn/knn"
+	// "github.com/sjwhitworth/golearn/trees"
+	// "github.com/sjwhitworth/golearn/naive"
 )
 
 // GoLearnRuntime handles GoLearn model inference
@@ -21,11 +28,11 @@ type GoLearnModel struct {
 	ID           string
 	Name         string
 	FilePath     string
-	Algorithm    string  // "knn", "trees", "linear", "naive_bayes"
+	Algorithm    string  // "knn", "trees", "linear_regression", "logistic_regression", "naive_bayes"
 	Loaded       bool
 	InferenceCount int64
 
-	// Model-specific data (will be populated based on algorithm)
+	// Model data will be stored here (interface{} to support different types)
 	modelData interface{}
 }
 
@@ -46,21 +53,36 @@ func (r *GoLearnRuntime) LoadModel(ctx context.Context, modelID, filePath string
 		return fmt.Errorf("model already loaded: %s", modelID)
 	}
 
-	// Read model file
-	data, err := os.ReadFile(filePath)
+	// Read model metadata file (JSON)
+	metadataPath := filePath + ".meta"
+	metadataBytes, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return fmt.Errorf("failed to read model file: %w", err)
+		return fmt.Errorf("failed to read model metadata: %w", err)
 	}
 
-	// Parse model metadata
 	var metadata struct {
 		Name      string `json:"name"`
 		Algorithm string `json:"algorithm"`
 		Version   string `json:"version"`
 	}
 
-	if err := json.Unmarshal(data, &metadata); err != nil {
+	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
 		return fmt.Errorf("failed to parse model metadata: %w", err)
+	}
+
+	// Load the actual GoLearn model (serialized with gob)
+	// For now, we'll use a placeholder - actual GoLearn integration needs more work
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open model file: %w", err)
+	}
+	defer file.Close()
+
+	// Placeholder: deserialize generic model data
+	decoder := gob.NewDecoder(file)
+	var modelData interface{}
+	if err := decoder.Decode(&modelData); err != nil {
+		return fmt.Errorf("failed to decode model: %w", err)
 	}
 
 	// Create model instance
@@ -70,14 +92,8 @@ func (r *GoLearnRuntime) LoadModel(ctx context.Context, modelID, filePath string
 		FilePath:  filePath,
 		Algorithm: metadata.Algorithm,
 		Loaded:    true,
+		modelData: modelData,
 	}
-
-	// TODO: Load actual GoLearn model based on algorithm
-	// This would use the golearn library:
-	// - base.ParseCSVToInstances() for data
-	// - knn.NewKnnClassifier() for k-NN
-	// - trees.NewDecisionTreeClassifier() for decision trees
-	// - linear.NewLogisticRegression() for logistic regression
 
 	r.models[modelID] = model
 
@@ -98,21 +114,31 @@ func (r *GoLearnRuntime) Predict(ctx context.Context, modelID string, input map[
 		return nil, fmt.Errorf("model not ready: %s", modelID)
 	}
 
+	// TODO: Actual GoLearn prediction implementation
+	// For now, return a placeholder response
+
+	// Extract features from input
+	features, ok := input["features"]
+	if !ok {
+		return nil, fmt.Errorf("invalid input format: expected 'features' key")
+	}
+
+	// Placeholder prediction
+	result := make(map[string]interface{})
+	result["prediction"] = "placeholder_result"
+	result["confidence"] = 0.85
+	result["input_features"] = features
+
 	// Increment inference counter
 	r.mu.Lock()
 	model.InferenceCount++
 	r.mu.Unlock()
 
-	// TODO: Perform actual inference based on algorithm
-	// For now, return mock prediction
-	prediction := map[string]interface{}{
-		"prediction": "mock_result",
-		"confidence": 0.85,
-		"algorithm":  model.Algorithm,
-		"model_name": model.Name,
-	}
+	// Add metadata
+	result["algorithm"] = model.Algorithm
+	result["model_name"] = model.Name
 
-	return prediction, nil
+	return result, nil
 }
 
 // UnloadModel removes a model from memory

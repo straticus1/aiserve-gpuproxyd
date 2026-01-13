@@ -18,6 +18,7 @@ type RuntimeOrchestrator struct {
 	golearnRuntime *GoLearnRuntime
 	gomlxRuntime   *GoMLXRuntime
 	sklearnRuntime *SklearnRuntime
+	onnxRuntime    *ONNXRuntime
 
 	// Runtime routing map
 	runtimeMap map[models.ModelFormat]string  // format -> runtime_type
@@ -29,10 +30,17 @@ type RuntimeOrchestrator struct {
 
 // NewRuntimeOrchestrator creates a new runtime orchestrator
 func NewRuntimeOrchestrator(gpuEnabled bool, pythonBridgeURL string) *RuntimeOrchestrator {
+	onnxRuntime := NewONNXRuntime(gpuEnabled, 0)
+	if err := onnxRuntime.InitializeLibrary(); err != nil {
+		// Log error but continue - ONNX may not be available
+		fmt.Printf("Warning: Failed to initialize ONNX Runtime: %v\n", err)
+	}
+
 	return &RuntimeOrchestrator{
 		golearnRuntime: NewGoLearnRuntime(),
 		gomlxRuntime:   NewGoMLXRuntime(gpuEnabled, 0),
 		sklearnRuntime: NewSklearnRuntime(pythonBridgeURL),
+		onnxRuntime:    onnxRuntime,
 		runtimeMap:     buildRuntimeMap(),
 		totalInferences: make(map[string]int64),
 		startTime:      time.Now(),
@@ -80,6 +88,9 @@ func (o *RuntimeOrchestrator) LoadModel(ctx context.Context, modelID string, for
 	case "sklearn":
 		return o.sklearnRuntime.LoadModel(ctx, modelID, filePath)
 
+	case "onnx":
+		return o.onnxRuntime.LoadModel(ctx, modelID, filePath, useGPU)
+
 	default:
 		return fmt.Errorf("runtime not implemented: %s", runtime)
 	}
@@ -108,6 +119,9 @@ func (o *RuntimeOrchestrator) Predict(ctx context.Context, modelID string, forma
 
 	case "sklearn":
 		result, err = o.sklearnRuntime.Predict(ctx, modelID, input)
+
+	case "onnx":
+		result, err = o.onnxRuntime.Predict(ctx, modelID, input)
 
 	default:
 		return nil, fmt.Errorf("runtime not implemented: %s", runtime)
@@ -140,6 +154,9 @@ func (o *RuntimeOrchestrator) UnloadModel(ctx context.Context, modelID string, f
 
 	case "sklearn":
 		return o.sklearnRuntime.UnloadModel(ctx, modelID)
+
+	case "onnx":
+		return o.onnxRuntime.UnloadModel(ctx, modelID)
 
 	default:
 		return fmt.Errorf("runtime not implemented: %s", runtime)
@@ -180,6 +197,7 @@ func (o *RuntimeOrchestrator) GetStats() map[string]interface{} {
 			"golearn": o.golearnRuntime.GetStats(),
 			"gomlx":   o.gomlxRuntime.GetStats(),
 			"sklearn": o.sklearnRuntime.GetStats(),
+			"onnx":    o.onnxRuntime.GetStats(),
 		},
 		"total_inferences_by_runtime": o.totalInferences,
 	}
@@ -205,6 +223,7 @@ func (o *RuntimeOrchestrator) HealthCheck(ctx context.Context) map[string]bool {
 		"golearn": true,  // Native Go, always healthy
 		"gomlx":   true,  // Native Go, always healthy
 		"sklearn": o.sklearnRuntime.HealthCheck(ctx) == nil,
+		"onnx":    o.onnxRuntime.HealthCheck(ctx) == nil,
 	}
 
 	return health
@@ -216,6 +235,7 @@ func (o *RuntimeOrchestrator) ListAllModels() map[string]interface{} {
 		"golearn": o.golearnRuntime.ListModels(),
 		"gomlx":   o.gomlxRuntime.ListModels(),
 		"sklearn": o.sklearnRuntime.ListModels(),
+		"onnx":    o.onnxRuntime.ListModels(),
 	}
 }
 
@@ -261,6 +281,21 @@ func (o *RuntimeOrchestrator) GetCapabilities() map[string]interface{} {
 				"formats": []string{"pickle", "joblib"},
 				"ports":   "8001-11000",
 				"latency": "5-20 milliseconds",
+			},
+			{
+				"name":          "onnx",
+				"language":      "c++",
+				"external_deps": true,
+				"gpu_support":   true,
+				"algorithms": []string{
+					"All ONNX-compatible models",
+					"PyTorch exported models",
+					"TensorFlow exported models",
+					"scikit-learn exported models",
+				},
+				"formats": []string{"onnx"},
+				"ports":   "11001-14000",
+				"latency": "1-10 milliseconds",
 			},
 		},
 		"total_supported_formats": 13,
