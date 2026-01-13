@@ -73,6 +73,7 @@ type RedisConfig struct {
 }
 
 type AuthConfig struct {
+	JWTEnabled         bool
 	JWTSecret          string
 	JWTExpiration      time.Duration
 	RefreshExpiration  time.Duration
@@ -183,7 +184,8 @@ func Load() (*Config, error) {
 			WriteTimeout: getEnvAsDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
 		},
 		Auth: AuthConfig{
-			JWTSecret:         getEnv("JWT_SECRET", "changeme"),
+			JWTEnabled:        getEnvAsBool("JWT_ENABLED", true),
+			JWTSecret:         getEnv("JWT_SECRET", ""),
 			JWTExpiration:     getEnvAsDuration("JWT_EXPIRATION", 24*time.Hour),
 			RefreshExpiration: getEnvAsDuration("REFRESH_EXPIRATION", 7*24*time.Hour),
 			APIKeyLength:      getEnvAsInt("API_KEY_LENGTH", 32),
@@ -247,8 +249,17 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if c.Auth.JWTSecret == "changeme" && c.Server.Environment == "production" {
-		return fmt.Errorf("JWT_SECRET must be set in production")
+	// JWT validation
+	if c.Auth.JWTEnabled {
+		if c.Auth.JWTSecret == "" {
+			return fmt.Errorf("JWT_SECRET is required when JWT_ENABLED=true. Generate a secure random value (minimum 32 characters)")
+		}
+		if len(c.Auth.JWTSecret) < 32 {
+			return fmt.Errorf("JWT_SECRET must be at least 32 characters for security. Current length: %d", len(c.Auth.JWTSecret))
+		}
+		if c.Auth.JWTSecret == "changeme" || c.Auth.JWTSecret == "secret" || c.Auth.JWTSecret == "password" {
+			return fmt.Errorf("JWT_SECRET must be a secure random value, not a common word")
+		}
 	}
 
 	// Check GPU providers - warn but allow startup if GPU_ALLOW_START_WITHOUT_PROVIDERS=true

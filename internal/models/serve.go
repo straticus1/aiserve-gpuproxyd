@@ -14,6 +14,7 @@ import (
 type ModelFormat string
 
 const (
+	// Python/External ML Frameworks
 	FormatPickle     ModelFormat = "pickle"      // Scikit-learn, PyTorch state_dict
 	FormatONNX       ModelFormat = "onnx"        // ONNX Runtime
 	FormatTensorFlow ModelFormat = "tensorflow"  // TensorFlow SavedModel
@@ -24,6 +25,11 @@ const (
 	FormatTensorRT   ModelFormat = "tensorrt"    // NVIDIA TensorRT
 	FormatCoreML     ModelFormat = "coreml"      // Apple Core ML
 	FormatTFLite     ModelFormat = "tflite"      // TensorFlow Lite
+
+	// Native Go ML Frameworks
+	FormatGoLearn    ModelFormat = "golearn"     // GoLearn (Classical ML in Go)
+	FormatGoMLX      ModelFormat = "gomlx"       // GoMLX (Deep Learning in Go)
+	FormatGoNum      ModelFormat = "gonum"       // Gonum (Numerical computing)
 )
 
 // ServedModel represents a user-uploaded model being served
@@ -264,6 +270,7 @@ func (r *ModelRegistry) loadModel(modelID string) {
 // isValidFormat checks if a model format is supported
 func isValidFormat(format ModelFormat) bool {
 	validFormats := []ModelFormat{
+		// Python/External Formats (10)
 		FormatPickle,
 		FormatONNX,
 		FormatTensorFlow,
@@ -274,6 +281,11 @@ func isValidFormat(format ModelFormat) bool {
 		FormatTensorRT,
 		FormatCoreML,
 		FormatTFLite,
+
+		// Native Go Formats (3)
+		FormatGoLearn,
+		FormatGoMLX,
+		FormatGoNum,
 	}
 
 	for _, f := range validFormats {
@@ -287,6 +299,7 @@ func isValidFormat(format ModelFormat) bool {
 // determineRuntime selects the best runtime for a model format
 func determineRuntime(format ModelFormat) string {
 	runtimeMap := map[ModelFormat]string{
+		// Python/External Runtimes
 		FormatONNX:       "onnxruntime",
 		FormatTensorFlow: "tfserving",
 		FormatPyTorch:    "torchserve",
@@ -297,6 +310,11 @@ func determineRuntime(format ModelFormat) string {
 		FormatPMML:       "pmml-server",
 		FormatCoreML:     "coreml-server",
 		FormatTFLite:     "tflite-runtime",
+
+		// Native Go Runtimes (fastest, no external dependencies)
+		FormatGoLearn:    "golearn-native",
+		FormatGoMLX:      "gomlx-gpu",
+		FormatGoNum:      "gonum-native",
 	}
 
 	if runtime, exists := runtimeMap[format]; exists {
@@ -311,6 +329,7 @@ func DetectModelFormat(filename string) ModelFormat {
 	ext := strings.ToLower(filepath.Ext(filename))
 
 	formatMap := map[string]ModelFormat{
+		// Python/External Formats
 		".pkl":        FormatPickle,
 		".pickle":     FormatPickle,
 		".onnx":       FormatONNX,
@@ -325,6 +344,11 @@ func DetectModelFormat(filename string) ModelFormat {
 		".trt":        FormatTensorRT,
 		".mlmodel":    FormatCoreML,
 		".tflite":     FormatTFLite,
+
+		// Native Go Formats
+		".golearn":    FormatGoLearn,
+		".gomlx":      FormatGoMLX,
+		".gonum":      FormatGoNum,
 	}
 
 	if format, exists := formatMap[ext]; exists {
