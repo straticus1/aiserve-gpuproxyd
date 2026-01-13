@@ -15,6 +15,9 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 - **WebSocket Streaming**: Real-time GPU inference streaming
 - **Credit System**: Track usage, quotas, and credits per client
 - **Rate Limiting**: Configurable per-user rate limits
+- **Guard Rails**: Spending control across 17 time windows (5min to 72h)
+- **Agent Protocols**: MCP, A2A, and ACP support for AI agent integration
+- **Centralized Logging**: Syslog support with file logging and AISERVE_LOG_FILE
 - **CLI Tools**: Advanced client with load monitoring and admin utility
 - **Developer Mode**: Enhanced debugging and development features
 
@@ -551,6 +554,118 @@ curl -X PUT -H "X-API-Key: $KEY" \
 
 See [LOADBALANCING.md](LOADBALANCING.md) for detailed guide.
 
+## Guard Rails
+
+Prevent out-of-control spending with configurable limits across multiple time windows:
+
+```bash
+# Enable guard rails with spending limits
+GUARDRAILS_ENABLED=true
+GUARDRAILS_MAX_60MIN_RATE=100.00    # $100/hour
+GUARDRAILS_MAX_1440MIN_RATE=1000.00 # $1000/day
+GUARDRAILS_MAX_72H_RATE=2500.00     # $2500/3 days
+```
+
+### Check Spending
+```bash
+# View spending status
+curl -H "X-API-Key: $KEY" \
+  http://localhost:8080/api/v1/guardrails/spending
+
+# Admin: View user spending
+./bin/aiserve-gpuproxy-admin guardrails-spending user@example.com
+
+# Admin: Reset spending tracking
+./bin/aiserve-gpuproxy-admin guardrails-reset user@example.com
+```
+
+See [GUARDRAILS.md](GUARDRAILS.md) for complete documentation.
+
+## Model Context Protocol (MCP)
+
+Integrate with AI assistants like Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "aiserve-gpuproxy": {
+      "command": "curl",
+      "args": ["-X", "POST", "-H", "X-API-Key: YOUR_KEY",
+               "http://localhost:8080/api/v1/mcp"]
+    }
+  }
+}
+```
+
+### Available MCP Tools
+- `list_gpu_instances` - List available GPUs
+- `create_gpu_instance` - Create GPU instance
+- `destroy_gpu_instance` - Destroy GPU instance
+- `get_spending_info` - Check guard rails spending
+- `check_spending_limit` - Validate spending limits
+- `get_billing_transactions` - View transaction history
+- `proxy_inference_request` - Proxy inference requests
+
+See [MCP.md](MCP.md) for complete MCP documentation.
+
+## Agent-to-Agent Communication
+
+Support for A2A and ACP protocols:
+
+### A2A (Agent-to-Agent Protocol)
+```bash
+curl -X POST http://localhost:8080/api/v1/a2a \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "action": "gpu.list",
+    "from_agent": "my-agent",
+    "parameters": {"provider": "vast.ai"}
+  }'
+```
+
+### ACP (Agent Communications Protocol)
+```bash
+curl -X POST http://localhost:8080/api/v1/acp \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "header": {
+      "sender": "my-agent",
+      "message_type": "command"
+    },
+    "payload": {
+      "command": "gpu.list",
+      "parameters": {"provider": "all"}
+    }
+  }'
+```
+
+### Agent Discovery
+```bash
+curl http://localhost:8080/agent/discover
+```
+
+## Logging
+
+Configure logging to syslog or file:
+
+```bash
+# Syslog to remote server
+SYSLOG_ENABLED=true
+SYSLOG_NETWORK=tcp
+SYSLOG_ADDRESS=logs.example.com:514
+SYSLOG_FACILITY=LOG_LOCAL0
+
+# Or log to file
+LOG_FILE=/var/log/aiserve-gpuproxy.log
+
+# Or use environment variable
+AISERVE_LOG_FILE=/var/log/aiserve-gpuproxy.log
+
+# Auto-detect /dev/log
+SYSLOG_ENABLED=true
+SYSLOG_ADDRESS=/dev/log
+```
+
 ## Environment Variables
 
 See `.env.example` for full configuration options.
@@ -567,6 +682,12 @@ Key variables:
 - `CRYPTO_ENABLED` - Enable crypto payments
 - `LB_STRATEGY` - Load balancing strategy
 - `LB_ENABLED` - Enable load balancing
+- `GUARDRAILS_ENABLED` - Enable spending guard rails
+- `GUARDRAILS_MAX_*_RATE` - Spending limits per time window
+- `SYSLOG_ENABLED` - Enable syslog logging
+- `SYSLOG_NETWORK` - Syslog network (tcp, udp, unix)
+- `SYSLOG_ADDRESS` - Syslog server address
+- `LOG_FILE` / `AISERVE_LOG_FILE` - Log file path
 
 ## License
 

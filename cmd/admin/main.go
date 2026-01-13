@@ -12,6 +12,7 @@ import (
 	"github.com/aiserve/gpuproxy/internal/auth"
 	"github.com/aiserve/gpuproxy/internal/config"
 	"github.com/aiserve/gpuproxy/internal/database"
+	"github.com/aiserve/gpuproxy/internal/middleware"
 	"github.com/google/uuid"
 )
 
@@ -54,6 +55,7 @@ func main() {
 	defer redis.Close()
 
 	authService := auth.NewService(db, redis, &cfg.Auth)
+	guardRails := middleware.NewGuardRails(redis, &cfg.GuardRails)
 
 	args := flag.Args()
 	if len(args) == 0 {
@@ -101,6 +103,25 @@ func main() {
 	case "stats":
 		showStats(ctx, db)
 
+	case "guardrails-status":
+		showGuardRailsStatus(cfg)
+
+	case "guardrails-spending":
+		if len(args) < 2 {
+			log.Fatal("Usage: admin guardrails-spending <user-email>")
+		}
+		showGuardRailsSpending(ctx, db, guardRails, args[1])
+
+	case "guardrails-reset":
+		if len(args) < 2 {
+			log.Fatal("Usage: admin guardrails-reset <user-email> [window]")
+		}
+		window := "all"
+		if len(args) >= 3 {
+			window = args[2]
+		}
+		resetGuardRailsSpending(ctx, db, guardRails, args[1], window)
+
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printUsage()
@@ -123,6 +144,9 @@ func printUsage() {
 	fmt.Println("  usage <email>                        Show usage stats for user")
 	fmt.Println("  migrate                              Run database migrations")
 	fmt.Println("  stats                                Show system statistics")
+	fmt.Println("  guardrails-status                    Show guard rails configuration")
+	fmt.Println("  guardrails-spending <email>          Show spending by time window for user")
+	fmt.Println("  guardrails-reset <email> [window]    Reset spending tracking (default: all)")
 }
 
 func listUsers(ctx context.Context, db *database.PostgresDB) {
@@ -264,4 +288,137 @@ func showStats(ctx context.Context, db *database.PostgresDB) {
 	fmt.Printf("Active API Keys: %d\n", apiKeyCount)
 	fmt.Printf("Total Transactions: %d\n", txCount)
 	fmt.Printf("Total GPU Hours Used: %.2f\n", totalGPUHours)
+}
+
+func showGuardRailsStatus(cfg *config.Config) {
+	fmt.Println("Guard Rails Configuration")
+	fmt.Println("=========================")
+	fmt.Printf("Enabled: %v\n\n", cfg.GuardRails.Enabled)
+
+	if !cfg.GuardRails.Enabled {
+		fmt.Println("Guard rails are currently disabled.")
+		fmt.Println("Set GUARDRAILS_ENABLED=true in .env to enable.")
+		return
+	}
+
+	fmt.Println("Spending Limits by Time Window:")
+	fmt.Println("--------------------------------")
+
+	limits := []struct {
+		Name  string
+		Value float64
+	}{
+		{"5 minutes", cfg.GuardRails.Max5MinRate},
+		{"15 minutes", cfg.GuardRails.Max15MinRate},
+		{"30 minutes", cfg.GuardRails.Max30MinRate},
+		{"60 minutes (1h)", cfg.GuardRails.Max60MinRate},
+		{"90 minutes (1.5h)", cfg.GuardRails.Max90MinRate},
+		{"120 minutes (2h)", cfg.GuardRails.Max120MinRate},
+		{"240 minutes (4h)", cfg.GuardRails.Max240MinRate},
+		{"300 minutes (5h)", cfg.GuardRails.Max300MinRate},
+		{"360 minutes (6h)", cfg.GuardRails.Max360MinRate},
+		{"400 minutes (6.67h)", cfg.GuardRails.Max400MinRate},
+		{"460 minutes (7.67h)", cfg.GuardRails.Max460MinRate},
+		{"520 minutes (8.67h)", cfg.GuardRails.Max520MinRate},
+		{"640 minutes (10.67h)", cfg.GuardRails.Max640MinRate},
+		{"700 minutes (11.67h)", cfg.GuardRails.Max700MinRate},
+		{"1440 minutes (24h)", cfg.GuardRails.Max1440MinRate},
+		{"48 hours", cfg.GuardRails.Max48HRate},
+		{"72 hours", cfg.GuardRails.Max72HRate},
+	}
+
+	activeCount := 0
+	for _, limit := range limits {
+		if limit.Value > 0 {
+			fmt.Printf("  %-25s $%.2f\n", limit.Name+":", limit.Value)
+			activeCount++
+		}
+	}
+
+	if activeCount == 0 {
+		fmt.Println("\nNo time window limits are currently configured.")
+		fmt.Println("Configure limits in .env (e.g., GUARDRAILS_MAX_60MIN_RATE=100.00)")
+	} else {
+		fmt.Printf("\nTotal active limits: %d\n", activeCount)
+	}
+}
+
+func showGuardRailsSpending(ctx context.Context, db *database.PostgresDB, gr *middleware.GuardRails, email string) {
+	query := `SELECT id, name FROM users WHERE email = $1`
+
+	var userID uuid.UUID
+	var userName string
+	if err := db.Pool.QueryRow(ctx, query, email).Scan(&userID, &userName); err != nil {
+		log.Fatalf("User not found: %v", err)
+	}
+
+	info, err := gr.GetSpendingInfo(ctx, userID)
+	if err != nil {
+		log.Fatalf("Failed to get spending info: %v", err)
+	}
+
+	fmt.Printf("Guard Rails Spending for %s (%s)\n", userName, email)
+	fmt.Println("========================================")
+	fmt.Printf("User ID: %s\n", userID.String())
+	fmt.Printf("Timestamp: %s\n\n", info.Timestamp.Format("2006-01-02 15:04:05"))
+
+	if len(info.WindowSpent) == 0 {
+		fmt.Println("No spending data recorded yet.")
+		return
+	}
+
+	fmt.Println("Spending by Time Window:")
+	fmt.Println("------------------------")
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "WINDOW\tSPENT\tSTATUS")
+	fmt.Fprintln(w, "------\t-----\t------")
+
+	windows := []string{"5min", "15min", "30min", "60min", "90min", "120min",
+		"240min", "300min", "360min", "400min", "460min", "520min",
+		"640min", "700min", "1440min", "48h", "72h"}
+
+	for _, window := range windows {
+		if spent, ok := info.WindowSpent[window]; ok {
+			status := "OK"
+			if len(info.Violations) > 0 {
+				for _, violation := range info.Violations {
+					if len(violation) > len(window) && violation[:len(window)] == window {
+						status = "EXCEEDED"
+						break
+					}
+				}
+			}
+			fmt.Fprintf(w, "%s\t$%.2f\t%s\n", window, spent, status)
+		}
+	}
+
+	w.Flush()
+
+	if len(info.Violations) > 0 {
+		fmt.Println("\nLIMIT VIOLATIONS:")
+		for _, violation := range info.Violations {
+			fmt.Printf("  ! %s\n", violation)
+		}
+	}
+}
+
+func resetGuardRailsSpending(ctx context.Context, db *database.PostgresDB, gr *middleware.GuardRails, email, window string) {
+	query := `SELECT id, name FROM users WHERE email = $1`
+
+	var userID uuid.UUID
+	var userName string
+	if err := db.Pool.QueryRow(ctx, query, email).Scan(&userID, &userName); err != nil {
+		log.Fatalf("User not found: %v", err)
+	}
+
+	if err := gr.ResetSpending(ctx, userID, window); err != nil {
+		log.Fatalf("Failed to reset spending: %v", err)
+	}
+
+	if window == "all" {
+		fmt.Printf("Successfully reset all spending tracking for %s (%s)\n", userName, email)
+	} else {
+		fmt.Printf("Successfully reset %s spending tracking for %s (%s)\n", window, userName, email)
+	}
 }

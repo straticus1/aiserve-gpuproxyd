@@ -24,6 +24,8 @@ type Config struct {
 	Billing      BillingConfig
 	GPU          GPUConfig
 	LoadBalancer LoadBalancerConfig
+	GuardRails   GuardRailsConfig
+	Logging      LoggingConfig
 }
 
 type ServerConfig struct {
@@ -82,6 +84,36 @@ type LoadBalancerConfig struct {
 	Enabled  bool
 }
 
+type GuardRailsConfig struct {
+	Enabled         bool
+	Max5MinRate     float64
+	Max15MinRate    float64
+	Max30MinRate    float64
+	Max60MinRate    float64
+	Max90MinRate    float64
+	Max120MinRate   float64
+	Max240MinRate   float64
+	Max300MinRate   float64
+	Max360MinRate   float64
+	Max400MinRate   float64
+	Max460MinRate   float64
+	Max520MinRate   float64
+	Max640MinRate   float64
+	Max700MinRate   float64
+	Max1440MinRate  float64
+	Max48HRate      float64
+	Max72HRate      float64
+}
+
+type LoggingConfig struct {
+	SyslogEnabled  bool
+	SyslogNetwork  string
+	SyslogAddress  string
+	SyslogTag      string
+	SyslogFacility string
+	LogFile        string
+}
+
 func Load() (*Config, error) {
 	godotenv.Load()
 
@@ -134,6 +166,34 @@ func Load() (*Config, error) {
 		LoadBalancer: LoadBalancerConfig{
 			Strategy: getEnv("LB_STRATEGY", "round_robin"),
 			Enabled:  getEnvAsBool("LB_ENABLED", true),
+		},
+		GuardRails: GuardRailsConfig{
+			Enabled:         getEnvAsBool("GUARDRAILS_ENABLED", false),
+			Max5MinRate:     getEnvAsFloat("GUARDRAILS_MAX_5MIN_RATE", 0),
+			Max15MinRate:    getEnvAsFloat("GUARDRAILS_MAX_15MIN_RATE", 0),
+			Max30MinRate:    getEnvAsFloat("GUARDRAILS_MAX_30MIN_RATE", 0),
+			Max60MinRate:    getEnvAsFloat("GUARDRAILS_MAX_60MIN_RATE", 0),
+			Max90MinRate:    getEnvAsFloat("GUARDRAILS_MAX_90MIN_RATE", 0),
+			Max120MinRate:   getEnvAsFloat("GUARDRAILS_MAX_120MIN_RATE", 0),
+			Max240MinRate:   getEnvAsFloat("GUARDRAILS_MAX_240MIN_RATE", 0),
+			Max300MinRate:   getEnvAsFloat("GUARDRAILS_MAX_300MIN_RATE", 0),
+			Max360MinRate:   getEnvAsFloat("GUARDRAILS_MAX_360MIN_RATE", 0),
+			Max400MinRate:   getEnvAsFloat("GUARDRAILS_MAX_400MIN_RATE", 0),
+			Max460MinRate:   getEnvAsFloat("GUARDRAILS_MAX_460MIN_RATE", 0),
+			Max520MinRate:   getEnvAsFloat("GUARDRAILS_MAX_520MIN_RATE", 0),
+			Max640MinRate:   getEnvAsFloat("GUARDRAILS_MAX_640MIN_RATE", 0),
+			Max700MinRate:   getEnvAsFloat("GUARDRAILS_MAX_700MIN_RATE", 0),
+			Max1440MinRate:  getEnvAsFloat("GUARDRAILS_MAX_1440MIN_RATE", 0),
+			Max48HRate:      getEnvAsFloat("GUARDRAILS_MAX_48H_RATE", 0),
+			Max72HRate:      getEnvAsFloat("GUARDRAILS_MAX_72H_RATE", 0),
+		},
+		Logging: LoggingConfig{
+			SyslogEnabled:  getEnvAsBool("SYSLOG_ENABLED", false),
+			SyslogNetwork:  getEnv("SYSLOG_NETWORK", ""),
+			SyslogAddress:  getEnv("SYSLOG_ADDRESS", ""),
+			SyslogTag:      getEnv("SYSLOG_TAG", "aiserve-gpuproxy"),
+			SyslogFacility: getEnv("SYSLOG_FACILITY", "LOG_LOCAL0"),
+			LogFile:        getEnv("LOG_FILE", ""),
 		},
 	}
 
@@ -196,4 +256,14 @@ func getEnvAsDuration(key string, defaultValue time.Duration) time.Duration {
 		return defaultValue
 	}
 	return duration
+}
+
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultValue
+	}
+	var value float64
+	fmt.Sscanf(valueStr, "%f", &value)
+	return value
 }

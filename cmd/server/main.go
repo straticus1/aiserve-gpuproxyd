@@ -18,6 +18,10 @@ import (
 	"github.com/aiserve/gpuproxy/internal/database"
 	"github.com/aiserve/gpuproxy/internal/gpu"
 	"github.com/aiserve/gpuproxy/internal/loadbalancer"
+	"github.com/aiserve/gpuproxy/internal/mcp"
+	"github.com/aiserve/gpuproxy/internal/a2a"
+	"github.com/aiserve/gpuproxy/internal/acp"
+	"github.com/aiserve/gpuproxy/internal/logging"
 	"github.com/aiserve/gpuproxy/internal/middleware"
 	"github.com/gorilla/mux"
 )
@@ -48,6 +52,25 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	// Initialize logging
+	logCfg := logging.SyslogConfig{
+		Enabled:  cfg.Logging.SyslogEnabled,
+		Network:  cfg.Logging.SyslogNetwork,
+		Address:  cfg.Logging.SyslogAddress,
+		Tag:      cfg.Logging.SyslogTag,
+		Facility: cfg.Logging.SyslogFacility,
+		FilePath: cfg.Logging.LogFile,
+	}
+
+	if err := logging.Initialize(logCfg); err != nil {
+		log.Printf("Warning: Failed to initialize logging: %v", err)
+	}
+	defer func() {
+		if logger := logging.GetLogger(); logger != nil {
+			logger.Close()
+		}
+	}()
+
 	if debugMode {
 		log.Printf("Configuration loaded: %+v", cfg.Server)
 	}
@@ -74,15 +97,22 @@ func main() {
 	protocolHandler := gpu.NewProtocolHandler(cfg.GPU.Timeout)
 	lbService := loadbalancer.NewLoadBalancerService(loadbalancer.Strategy(cfg.LoadBalancer.Strategy))
 
+	authMiddleware := middleware.NewAuthMiddleware(authService, cfg.Auth.JWTSecret)
+	rateLimiter := middleware.NewRateLimiter(redis)
+	guardRails := middleware.NewGuardRails(redis, &cfg.GuardRails)
+	mcpServer := mcp.NewMCPServer(gpuService, billingService, authService, guardRails)
+	a2aServer := a2a.NewA2AServer(gpuService, billingService, authService, guardRails)
+	acpServer := acp.NewACPServer(gpuService, billingService, authService, guardRails)
+
 	authHandler := api.NewAuthHandler(authService)
 	billingHandler := api.NewBillingHandler(billingService)
 	gpuHandler := api.NewGPUHandler(gpuService, protocolHandler, lbService)
 	lbHandler := api.NewLoadBalancerHandler(lbService)
 	userHandler := api.NewUserHandler(db)
 	wsHandler := api.NewWebSocketHandler()
-
-	authMiddleware := middleware.NewAuthMiddleware(authService, cfg.Auth.JWTSecret)
-	rateLimiter := middleware.NewRateLimiter(redis)
+	guardRailsHandler := api.NewGuardRailsHandler(guardRails)
+	mcpHandler := api.NewMCPHandler(mcpServer)
+	agentHandler := api.NewAgentHandler(a2aServer, acpServer)
 
 	router := mux.NewRouter()
 
@@ -104,6 +134,7 @@ func main() {
 	protected := apiRouter.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
 	protected.Use(rateLimiter.Limit(100))
+	protected.Use(guardRails.Middleware())
 
 	protected.HandleFunc("/auth/apikey", authHandler.CreateAPIKey).Methods("POST")
 
@@ -124,6 +155,18 @@ func main() {
 	protected.HandleFunc("/billing/payment", billingHandler.CreatePayment).Methods("POST")
 	protected.HandleFunc("/billing/transactions", billingHandler.GetTransactions).Methods("GET")
 
+	protected.HandleFunc("/guardrails/spending", guardRailsHandler.GetSpendingInfo).Methods("GET")
+	protected.HandleFunc("/guardrails/spending/record", guardRailsHandler.RecordSpending).Methods("POST")
+	protected.HandleFunc("/guardrails/spending/check", guardRailsHandler.CheckSpending).Methods("POST")
+	protected.HandleFunc("/guardrails/spending/reset", guardRailsHandler.ResetSpending).Methods("POST")
+
+	protected.HandleFunc("/mcp", mcpHandler.HandleMCP).Methods("POST")
+	protected.HandleFunc("/mcp/sse", mcpHandler.HandleSSE).Methods("GET")
+
+	protected.HandleFunc("/a2a", agentHandler.HandleA2A).Methods("POST")
+	protected.HandleFunc("/acp", agentHandler.HandleACP).Methods("POST")
+
+	router.HandleFunc("/agent/discover", agentHandler.HandleAgentDiscovery).Methods("GET")
 	router.HandleFunc("/ws", wsHandler.HandleConnection)
 
 	if developerMode {
