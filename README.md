@@ -7,7 +7,7 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 - **Multi-Provider GPU Access**: Seamlessly access GPUs from vast.ai and io.net
 - **Load Balancing**: 5 strategies (Round Robin, Equal Weighted, Weighted Round Robin, Least Connections, Least Response Time)
 - **GPU Reservation**: Reserve up to 16 GPUs at once with automatic load balancing
-- **Protocol Support**: HTTP/HTTPS, MCP (Model Context Protocol), and Open Inference Protocol
+- **Protocol Support**: HTTP/HTTPS, gRPC, MCP (Model Context Protocol), and Open Inference Protocol
 - **Multiple Databases**: PostgreSQL or SQLite support
 - **Flexible Session Management**: Redis, SQL, or balanced mode
 - **Authentication**: JWT tokens and API keys
@@ -405,6 +405,168 @@ The API supports several custom headers:
 ./bin/aiserve-gpuproxy-admin migrate
 ```
 
+## gRPC API
+
+The GPU Proxy also provides a high-performance gRPC API for all operations.
+
+### Configuration
+
+Set the gRPC port in `.env`:
+```env
+GRPC_PORT=9090
+```
+
+### Available Services
+
+All HTTP API operations are available via gRPC:
+- Authentication (Login, CreateAPIKey)
+- GPU Management (List, Create, Destroy, Get)
+- Proxy Requests (Unary and Streaming)
+- Billing (CreatePayment, GetTransactions)
+- Guard Rails (GetSpendingInfo, CheckSpendingLimit)
+- Load Balancing (SetStrategy, GetLoadInfo, ReserveGPUs)
+- Health Check
+
+### Protocol Buffers
+
+See `proto/gpuproxy.proto` for the complete service definition.
+
+### Example: Go Client
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    pb "github.com/aiserve/gpuproxy/proto"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/metadata"
+)
+
+func main() {
+    conn, err := grpc.Dial("localhost:9090", grpc.WithInsecure())
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    client := pb.NewGPUProxyServiceClient(conn)
+
+    // Login
+    loginResp, err := client.Login(context.Background(), &pb.LoginRequest{
+        Email:    "user@example.com",
+        Password: "password",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Use token for authenticated requests
+    ctx := metadata.AppendToOutgoingContext(
+        context.Background(),
+        "authorization", "Bearer "+loginResp.Token,
+    )
+
+    // List GPU instances
+    instances, err := client.ListGPUInstances(ctx, &pb.ListGPUInstancesRequest{
+        Provider: "all",
+        MinVram:  16,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("Found %d instances", instances.TotalCount)
+
+    // Reserve 4 GPUs with automatic creation
+    reserved, err := client.ReserveGPUs(ctx, &pb.ReserveGPUsRequest{
+        Count:    4,
+        Provider: "vast.ai",
+        MinVram:  16,
+        MaxPrice: 2.0,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("Reserved %d GPUs:", reserved.ReservedCount)
+    for _, inst := range reserved.ReservedInstances {
+        contractID := inst.Metadata["contract_id"]
+        log.Printf("  - %s: %s (Contract: %s, $%.2f/hr)",
+            inst.GpuModel, inst.Id, contractID, inst.PricePerHour)
+    }
+}
+```
+
+### Example: Python Client
+
+```python
+import grpc
+from proto import gpuproxy_pb2, gpuproxy_pb2_grpc
+
+# Connect to server
+channel = grpc.insecure_channel('localhost:9090')
+stub = gpuproxy_pb2_grpc.GPUProxyServiceStub(channel)
+
+# Login
+login_response = stub.Login(gpuproxy_pb2.LoginRequest(
+    email="user@example.com",
+    password="password"
+))
+
+# Create metadata with token
+metadata = [('authorization', f'Bearer {login_response.token}')]
+
+# List GPU instances
+instances = stub.ListGPUInstances(
+    gpuproxy_pb2.ListGPUInstancesRequest(
+        provider="all",
+        min_vram=16
+    ),
+    metadata=metadata
+)
+
+print(f"Found {instances.total_count} instances")
+```
+
+### Streaming Proxy Requests
+
+gRPC supports bidirectional streaming for real-time inference:
+
+```go
+stream, err := client.StreamProxyRequest(ctx)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Send requests
+go func() {
+    for i := 0; i < 10; i++ {
+        stream.Send(&pb.ProxyRequestMessage{
+            Protocol:  "https",
+            TargetUrl: "https://api.example.com/inference",
+            Method:    "POST",
+            Body:      []byte(`{"prompt": "Hello"}`),
+        })
+    }
+    stream.CloseSend()
+}()
+
+// Receive responses
+for {
+    resp, err := stream.Recv()
+    if err == io.EOF {
+        break
+    }
+    if err != nil {
+        log.Fatal(err)
+    }
+    log.Printf("Response: %d - %s", resp.StatusCode, resp.Body)
+}
+```
+
 ## WebSocket Streaming
 
 Connect to WebSocket for real-time updates:
@@ -552,7 +714,7 @@ curl -X PUT -H "X-API-Key: $KEY" \
 ./bin/aiserve-gpuproxy-client -key $KEY reserve 16
 ```
 
-See [LOADBALANCING.md](LOADBALANCING.md) for detailed guide.
+See [GPU_RESERVATIONS.md](GPU_RESERVATIONS.md) for complete reservation guide and [LOADBALANCING.md](LOADBALANCING.md) for load balancing details.
 
 ## Guard Rails
 
@@ -740,6 +902,7 @@ Key variables:
 - `SYSLOG_NETWORK` - Syslog network (tcp, udp, unix)
 - `SYSLOG_ADDRESS` - Syslog server address
 - `LOG_FILE` / `AISERVE_LOG_FILE` - Log file path
+- `GRPC_PORT` - gRPC server port (default: 9090)
 
 ## License
 

@@ -250,11 +250,10 @@ func (s *FIPAServer) handleRequest(ctx context.Context, msg FIPAMessage) ([]byte
 	}
 
 	// First agree to the request
-	agreeResp, _ := s.agreeResponse(msg.ReplyWith, msg.Sender, msg.ConversationID, content)
+	_, _ = s.agreeResponse(msg.ReplyWith, msg.Sender, msg.ConversationID, content)
 
 	// Then inform of the result
 	return s.informResponse(msg.ReplyWith, msg.Sender, msg.ConversationID, result)
-	_ = agreeResp // Would send this first in a real implementation
 }
 
 func (s *FIPAServer) handleSubscribe(ctx context.Context, msg FIPAMessage) ([]byte, error) {

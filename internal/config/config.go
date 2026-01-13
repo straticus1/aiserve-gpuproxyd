@@ -31,6 +31,9 @@ type Config struct {
 type ServerConfig struct {
 	Host         string
 	Port         int
+	GRPCPort     int
+	GRPCTLSCert  string
+	GRPCTLSKey   string
 	Environment  string
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
@@ -121,6 +124,9 @@ func Load() (*Config, error) {
 		Server: ServerConfig{
 			Host:         getEnv("SERVER_HOST", "0.0.0.0"),
 			Port:         getEnvAsInt("SERVER_PORT", 8080),
+			GRPCPort:     getEnvAsInt("GRPC_PORT", 9090),
+			GRPCTLSCert:  getEnv("GRPC_TLS_CERT", ""),
+			GRPCTLSKey:   getEnv("GRPC_TLS_KEY", ""),
 			Environment:  getEnv("ENVIRONMENT", "development"),
 			ReadTimeout:  getEnvAsDuration("READ_TIMEOUT", 15*time.Second),
 			WriteTimeout: getEnvAsDuration("WRITE_TIMEOUT", 15*time.Second),

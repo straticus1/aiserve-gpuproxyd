@@ -1,0 +1,249 @@
+syntax = "proto3";
+
+package gpuproxy;
+
+option go_package = "github.com/aiserve/gpuproxy/pkg/grpc/pb";
+
+// GPUProxyService provides GPU management and proxy functionality
+service GPUProxyService {
+  // Authentication
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc CreateAPIKey(CreateAPIKeyRequest) returns (CreateAPIKeyResponse);
+
+  // GPU Management
+  rpc ListGPUInstances(ListGPUInstancesRequest) returns (ListGPUInstancesResponse);
+  rpc CreateGPUInstance(CreateGPUInstanceRequest) returns (CreateGPUInstanceResponse);
+  rpc DestroyGPUInstance(DestroyGPUInstanceRequest) returns (DestroyGPUInstanceResponse);
+  rpc GetGPUInstance(GetGPUInstanceRequest) returns (GetGPUInstanceResponse);
+
+  // Proxy Requests
+  rpc ProxyRequest(ProxyRequestMessage) returns (ProxyResponse);
+  rpc StreamProxyRequest(stream ProxyRequestMessage) returns (stream ProxyResponse);
+
+  // Billing
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc GetTransactions(GetTransactionsRequest) returns (GetTransactionsResponse);
+
+  // Guard Rails
+  rpc GetSpendingInfo(GetSpendingInfoRequest) returns (GetSpendingInfoResponse);
+  rpc CheckSpendingLimit(CheckSpendingLimitRequest) returns (CheckSpendingLimitResponse);
+
+  // Load Balancing
+  rpc SetLoadBalancerStrategy(SetLoadBalancerStrategyRequest) returns (SetLoadBalancerStrategyResponse);
+  rpc GetLoadInfo(GetLoadInfoRequest) returns (GetLoadInfoResponse);
+  rpc ReserveGPUs(ReserveGPUsRequest) returns (ReserveGPUsResponse);
+
+  // Health
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Authentication Messages
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+  string user_id = 2;
+  string email = 3;
+}
+
+message CreateAPIKeyRequest {
+  string name = 1;
+  string token = 2; // JWT token for auth
+}
+
+message CreateAPIKeyResponse {
+  string api_key = 1;
+  string name = 2;
+  int64 created_at = 3;
+}
+
+// GPU Instance Messages
+message ListGPUInstancesRequest {
+  string provider = 1; // "vast.ai", "io.net", or "all"
+  double min_vram = 2;
+  double max_price = 3;
+  string gpu_model = 4;
+}
+
+message GPUInstance {
+  string id = 1;
+  string provider = 2;
+  string status = 3;
+  double price_per_hour = 4;
+  int32 vram_gb = 5;
+  string gpu_model = 6;
+  int32 num_gpus = 7;
+  string location = 8;
+  map<string, string> metadata = 9;
+}
+
+message ListGPUInstancesResponse {
+  repeated GPUInstance instances = 1;
+  int32 total_count = 2;
+}
+
+message CreateGPUInstanceRequest {
+  string provider = 1;
+  string instance_id = 2;
+  string image = 3;
+  map<string, string> env = 4;
+  repeated int32 ports = 5;
+}
+
+message CreateGPUInstanceResponse {
+  string instance_id = 1;
+  string provider = 2;
+  string status = 3;
+  string message = 4;
+}
+
+message DestroyGPUInstanceRequest {
+  string provider = 1;
+  string instance_id = 2;
+}
+
+message DestroyGPUInstanceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetGPUInstanceRequest {
+  string provider = 1;
+  string instance_id = 2;
+}
+
+message GetGPUInstanceResponse {
+  GPUInstance instance = 1;
+}
+
+// Proxy Messages
+message ProxyRequestMessage {
+  string protocol = 1; // "http", "https", "mcp", "openinference"
+  string target_url = 2;
+  string method = 3; // HTTP method
+  map<string, string> headers = 4;
+  bytes body = 5;
+  int32 timeout = 6;
+}
+
+message ProxyResponse {
+  int32 status_code = 1;
+  map<string, string> headers = 2;
+  bytes body = 3;
+  string error = 4;
+}
+
+// Billing Messages
+message CreatePaymentRequest {
+  double amount = 1;
+  string currency = 2;
+  string provider = 3; // "stripe", "crypto", "afterdark"
+  string payment_method = 4; // card:num:expr:ccv or crypto:network:wallet
+}
+
+message CreatePaymentResponse {
+  string payment_id = 1;
+  string status = 2;
+  double amount = 3;
+  string currency = 4;
+}
+
+message GetTransactionsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message Transaction {
+  string id = 1;
+  string type = 2;
+  double amount = 3;
+  string currency = 4;
+  int64 timestamp = 5;
+  string status = 6;
+  string description = 7;
+}
+
+message GetTransactionsResponse {
+  repeated Transaction transactions = 1;
+  int32 total_count = 2;
+}
+
+// Guard Rails Messages
+message GetSpendingInfoRequest {}
+
+message SpendingWindow {
+  string window = 1; // e.g., "5min", "60min", "1440min"
+  double spent = 2;
+  double limit = 3;
+  double remaining = 4;
+  bool exceeded = 5;
+}
+
+message GetSpendingInfoResponse {
+  repeated SpendingWindow windows = 1;
+  bool guard_rails_enabled = 2;
+  double total_spent_24h = 3;
+}
+
+message CheckSpendingLimitRequest {
+  double amount = 1;
+}
+
+message CheckSpendingLimitResponse {
+  bool allowed = 1;
+  string reason = 2;
+  repeated SpendingWindow would_exceed = 3;
+}
+
+// Load Balancing Messages
+message SetLoadBalancerStrategyRequest {
+  string strategy = 1; // "round_robin", "equal_weighted", "weighted_round_robin", "least_connections", "least_response_time"
+}
+
+message SetLoadBalancerStrategyResponse {
+  string strategy = 1;
+  bool success = 2;
+}
+
+message GetLoadInfoRequest {
+  string type = 1; // "server", "provider", or "all"
+}
+
+message LoadInfo {
+  string instance_id = 1;
+  string provider = 2;
+  int32 connections = 3;
+  double avg_response_time_ms = 4;
+  double load_score = 5;
+}
+
+message GetLoadInfoResponse {
+  repeated LoadInfo server_load = 1;
+  repeated LoadInfo provider_load = 2;
+  string current_strategy = 3;
+}
+
+message ReserveGPUsRequest {
+  int32 count = 1; // 1-16
+  string provider = 2;
+  double min_vram = 3;
+  double max_price = 4;
+}
+
+message ReserveGPUsResponse {
+  repeated GPUInstance reserved_instances = 1;
+  int32 reserved_count = 2;
+  string message = 3;
+}
+
+// Health Check Messages
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+  int64 timestamp = 2;
+  map<string, string> details = 3;
+}

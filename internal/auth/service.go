@@ -26,6 +26,10 @@ func NewService(db *database.PostgresDB, redis *database.RedisClient, cfg *confi
 	}
 }
 
+func (s *Service) GetJWTSecret() string {
+	return s.config.JWTSecret
+}
+
 func (s *Service) Register(ctx context.Context, email, password, name string) (*models.User, error) {
 	hashedPassword, err := HashPassword(password)
 	if err != nil {

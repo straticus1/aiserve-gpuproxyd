@@ -1,6 +1,10 @@
-.PHONY: build run test clean docker-build docker-up docker-down help
+.PHONY: build run test clean docker-build docker-up docker-down proto help
 
-build:
+proto:
+	@echo "Generating protobuf code..."
+	@export PATH=$$PATH:$$(go env GOPATH)/bin && protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative proto/gpuproxy.proto
+
+build: proto
 	@echo "Building aiserve-gpuproxyd..."
 	CGO_ENABLED=1 go build -o bin/aiserve-gpuproxyd ./cmd/server
 	@echo "Building aiserve-gpuproxy-client..."
@@ -23,6 +27,7 @@ test:
 clean:
 	@echo "Cleaning..."
 	rm -rf bin/
+	rm -f proto/*.pb.go
 
 docker-build:
 	@echo "Building Docker image..."
@@ -50,11 +55,12 @@ deps:
 
 help:
 	@echo "GPU Proxy Makefile Commands:"
-	@echo "  make build        - Build all binaries (aiserve-gpuproxyd, aiserve-gpuproxy-client, aiserve-gpuproxy-admin)"
+	@echo "  make proto        - Generate protobuf code from proto/gpuproxy.proto"
+	@echo "  make build        - Build all binaries (includes proto generation)"
 	@echo "  make run          - Run the server (aiserve-gpuproxyd)"
 	@echo "  make run-dev      - Run server in developer/debug mode"
 	@echo "  make test         - Run tests"
-	@echo "  make clean        - Clean build artifacts"
+	@echo "  make clean        - Clean build artifacts and generated protobuf files"
 	@echo "  make docker-build - Build Docker image"
 	@echo "  make docker-up    - Start Docker services"
 	@echo "  make docker-down  - Stop Docker services"

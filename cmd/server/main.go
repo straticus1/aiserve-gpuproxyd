@@ -26,6 +26,7 @@ import (
 	"github.com/aiserve/gpuproxy/internal/langchain"
 	"github.com/aiserve/gpuproxy/internal/logging"
 	"github.com/aiserve/gpuproxy/internal/middleware"
+	grpcServer "github.com/aiserve/gpuproxy/internal/grpc"
 	"github.com/gorilla/mux"
 )
 
@@ -185,6 +186,17 @@ func main() {
 		router.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/admin")))
 	}
 
+	// Initialize gRPC server
+	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService)
+	grpcAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.GRPCPort)
+
+	go func() {
+		log.Printf("Starting gRPC server on %s", grpcAddr)
+		if err := grpcSrv.Start(grpcAddr, cfg.Server.GRPCTLSCert, cfg.Server.GRPCTLSKey); err != nil {
+			log.Fatalf("gRPC server failed: %v", err)
+		}
+	}()
+
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
 		Addr:         addr,
@@ -195,9 +207,9 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Starting GPU Proxy server on %s", addr)
+		log.Printf("Starting HTTP server on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+			log.Fatalf("HTTP server failed: %v", err)
 		}
 	}()
 
@@ -205,14 +217,19 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	log.Println("Shutting down servers...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Shutdown gRPC server
+	grpcSrv.Stop()
+	log.Println("gRPC server stopped")
+
+	// Shutdown HTTP server
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		log.Fatalf("HTTP server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server exited gracefully")
+	log.Println("Servers exited gracefully")
 }
