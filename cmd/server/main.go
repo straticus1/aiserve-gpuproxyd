@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -208,7 +209,13 @@ func main() {
 
 	// Initialize gRPC server
 	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService, cuicServer)
-	grpcAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.GRPCPort)
+
+	// Format address properly for IPv6 (needs brackets)
+	grpcHost := cfg.Server.Host
+	if strings.Contains(grpcHost, ":") {
+		grpcHost = "[" + grpcHost + "]"
+	}
+	grpcAddr := fmt.Sprintf("%s:%d", grpcHost, cfg.Server.GRPCPort)
 
 	go func() {
 		log.Printf("Starting gRPC server on %s", grpcAddr)
@@ -217,7 +224,12 @@ func main() {
 		}
 	}()
 
-	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
+	// Format address properly for IPv6 (needs brackets)
+	httpHost := cfg.Server.Host
+	if strings.Contains(httpHost, ":") {
+		httpHost = "[" + httpHost + "]"
+	}
+	addr := fmt.Sprintf("%s:%d", httpHost, cfg.Server.Port)
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
