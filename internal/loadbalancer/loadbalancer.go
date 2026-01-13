@@ -74,6 +74,11 @@ func (lb *BaseLoadBalancer) ensureLoad(instanceID, provider string) *InstanceLoa
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 
+	return lb.ensureLoadUnsafe(instanceID, provider)
+}
+
+// ensureLoadUnsafe must be called while holding the lock
+func (lb *BaseLoadBalancer) ensureLoadUnsafe(instanceID, provider string) *InstanceLoad {
 	if load, exists := lb.loads[instanceID]; exists {
 		return load
 	}
@@ -164,7 +169,7 @@ func (lb *RoundRobinLB) SelectInstance(instances []models.GPUInstance) (*models.
 	lb.roundRobinIndex++
 
 	selected := &instances[index]
-	lb.ensureLoad(selected.ID, selected.Provider)
+	lb.ensureLoadUnsafe(selected.ID, selected.Provider)
 	return selected, nil
 }
 
@@ -184,7 +189,7 @@ func (lb *EqualWeightedLB) SelectInstance(instances []models.GPUInstance) (*mode
 	var selected *models.GPUInstance
 
 	for i := range instances {
-		load := lb.ensureLoad(instances[i].ID, instances[i].Provider)
+		load := lb.ensureLoadUnsafe(instances[i].ID, instances[i].Provider)
 		if load.TotalConnections < minLoad {
 			minLoad = load.TotalConnections
 			selected = &instances[i]
@@ -215,7 +220,7 @@ func (lb *WeightedRoundRobinLB) SelectInstance(instances []models.GPUInstance) (
 	maxWeight := -1.0
 
 	for i := range instances {
-		load := lb.ensureLoad(instances[i].ID, instances[i].Provider)
+		load := lb.ensureLoadUnsafe(instances[i].ID, instances[i].Provider)
 
 		weight := lb.calculateWeight(&instances[i])
 		load.Weight = weight
@@ -267,7 +272,7 @@ func (lb *LeastConnectionsLB) SelectInstance(instances []models.GPUInstance) (*m
 	var selected *models.GPUInstance
 
 	for i := range instances {
-		load := lb.ensureLoad(instances[i].ID, instances[i].Provider)
+		load := lb.ensureLoadUnsafe(instances[i].ID, instances[i].Provider)
 		if load.ActiveConnections < minConnections {
 			minConnections = load.ActiveConnections
 			selected = &instances[i]
@@ -297,7 +302,7 @@ func (lb *LeastResponseTimeLB) SelectInstance(instances []models.GPUInstance) (*
 	var selected *models.GPUInstance
 
 	for i := range instances {
-		load := lb.ensureLoad(instances[i].ID, instances[i].Provider)
+		load := lb.ensureLoadUnsafe(instances[i].ID, instances[i].Provider)
 
 		if load.AvgResponseTime == 0 {
 			selected = &instances[i]

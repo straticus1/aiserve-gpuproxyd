@@ -101,39 +101,48 @@ func (s *Service) Login(ctx context.Context, email, password, ipAddress, userAge
 }
 
 func (s *Service) ValidateAPIKey(ctx context.Context, apiKey string) (*models.User, error) {
+	// CRITICAL FIX: Hash the API key first, then query for that specific hash
+	// This eliminates the N+1 query problem where we were fetching ALL keys
+	// and comparing each one. Now it's a single indexed query.
+	keyHash, err := HashAPIKey(apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash API key: %w", err)
+	}
+
+	// Single query with hash comparison - uses index on key_hash column
 	query := `
-		SELECT u.id, u.email, u.name, u.is_admin, u.is_active, ak.key_hash
+		SELECT u.id, u.email, u.name, u.is_admin, u.is_active
 		FROM users u
 		JOIN api_keys ak ON u.id = ak.user_id
-		WHERE ak.is_active = true
+		WHERE ak.key_hash = $1
+		AND ak.is_active = true
 		AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
+		LIMIT 1
 	`
 
-	rows, err := s.db.Pool.Query(ctx, query)
+	// Set query timeout to prevent long-running queries
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var user models.User
+	err = s.db.Pool.QueryRow(queryCtx, query, keyHash).
+		Scan(&user.ID, &user.Email, &user.Name, &user.IsAdmin, &user.IsActive)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to query API keys: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var user models.User
-		var keyHash string
-
-		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.IsAdmin, &user.IsActive, &keyHash); err != nil {
-			continue
+		if err.Error() == "no rows in result set" {
+			return nil, fmt.Errorf("invalid API key")
 		}
-
-		if VerifyAPIKey(keyHash, apiKey) == nil {
-			if !user.IsActive {
-				return nil, fmt.Errorf("user account is inactive")
-			}
-
-			go s.updateAPIKeyLastUsed(user.ID, apiKey)
-			return &user, nil
-		}
+		return nil, fmt.Errorf("failed to validate API key: %w", err)
 	}
 
-	return nil, fmt.Errorf("invalid API key")
+	if !user.IsActive {
+		return nil, fmt.Errorf("user account is inactive")
+	}
+
+	// Update last_used_at asynchronously (don't block response)
+	go s.updateAPIKeyLastUsed(user.ID, keyHash)
+
+	return &user, nil
 }
 
 func (s *Service) CreateAPIKey(ctx context.Context, userID uuid.UUID, name string, expiresAt *time.Time) (string, error) {
@@ -206,10 +215,10 @@ func (s *Service) createDefaultQuota(ctx context.Context, userID uuid.UUID) erro
 	return err
 }
 
-func (s *Service) updateAPIKeyLastUsed(userID uuid.UUID, apiKey string) {
+func (s *Service) updateAPIKeyLastUsed(userID uuid.UUID, keyHash string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	query := `UPDATE api_keys SET last_used_at = NOW() WHERE user_id = $1`
-	s.db.Pool.Exec(ctx, query, userID)
+	query := `UPDATE api_keys SET last_used_at = NOW() WHERE user_id = $1 AND key_hash = $2`
+	s.db.Pool.Exec(ctx, query, userID, keyHash)
 }
