@@ -49,15 +49,17 @@ services:
       DATABASES_USER: postgres
       DATABASES_PASSWORD: changeme
       DATABASES_DBNAME: gpuproxy
-      # PgBouncer settings optimized for high connections
+      # PgBouncer settings optimized for 2,000-6,000 concurrent connections
       PGBOUNCER_POOL_MODE: transaction
       PGBOUNCER_MAX_CLIENT_CONN: 10000
-      PGBOUNCER_DEFAULT_POOL_SIZE: 20
-      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_DEFAULT_POOL_SIZE: 100
+      PGBOUNCER_RESERVE_POOL_SIZE: 20
       PGBOUNCER_RESERVE_POOL_TIMEOUT: 5
-      PGBOUNCER_SERVER_IDLE_TIMEOUT: 300
-      PGBOUNCER_SERVER_LIFETIME: 3600
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 60
+      PGBOUNCER_SERVER_LIFETIME: 1800
       PGBOUNCER_SERVER_CONNECT_TIMEOUT: 15
+      PGBOUNCER_QUERY_TIMEOUT: 30
+      PGBOUNCER_QUERY_WAIT_TIMEOUT: 15
       PGBOUNCER_LISTEN_PORT: 6432
       PGBOUNCER_AUTH_TYPE: plain
       PGBOUNCER_AUTH_USER: postgres
@@ -105,17 +107,17 @@ services:
       - DB_SSLMODE=disable
       - DB_USE_PGBOUNCER=true
       - DB_PGBOUNCER_POOL_MODE=transaction
-      - DB_MAX_CONNS=200
-      - DB_MIN_CONNS=20
-      - DB_MAX_CONN_LIFETIME=15m
-      - DB_MAX_CONN_IDLE_TIME=5m
-      - DB_HEALTH_CHECK_PERIOD=1m
-      - DB_CONNECT_TIMEOUT=5s
-      # Redis (optimized pool)
+      - DB_MAX_CONNS=1000
+      - DB_MIN_CONNS=100
+      - DB_MAX_CONN_LIFETIME=10m
+      - DB_MAX_CONN_IDLE_TIME=2m
+      - DB_HEALTH_CHECK_PERIOD=30s
+      - DB_CONNECT_TIMEOUT=10s
+      # Redis (optimized pool for high concurrency)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_POOL_SIZE=50
-      - REDIS_MIN_IDLE_CONNS=10
+      - REDIS_POOL_SIZE=100
+      - REDIS_MIN_IDLE_CONNS=20
       - SESSION_MODE=balanced
       # Auth
       - JWT_SECRET=${JWT_SECRET:-changeme-generate-secure-key}
