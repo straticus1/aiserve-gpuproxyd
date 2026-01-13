@@ -8,6 +8,19 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: changeme
       POSTGRES_DB: gpuproxy
+      # Optimize PostgreSQL for PgBouncer
+      POSTGRES_INITDB_ARGS: "-c max_connections=100"
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -17,11 +30,47 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gpuproxy-net
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: gpuproxy-pgbouncer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database connection
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_USER: postgres
+      DATABASES_PASSWORD: changeme
+      DATABASES_DBNAME: gpuproxy
+      # PgBouncer settings optimized for high connections
+      PGBOUNCER_POOL_MODE: transaction
+      PGBOUNCER_MAX_CLIENT_CONN: 10000
+      PGBOUNCER_DEFAULT_POOL_SIZE: 20
+      PGBOUNCER_RESERVE_POOL_SIZE: 5
+      PGBOUNCER_RESERVE_POOL_TIMEOUT: 5
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: 300
+      PGBOUNCER_SERVER_LIFETIME: 3600
+      PGBOUNCER_SERVER_CONNECT_TIMEOUT: 15
+      PGBOUNCER_LISTEN_PORT: 6432
+      PGBOUNCER_AUTH_TYPE: md5
+    ports:
+      - "6432:6432"
+    healthcheck:
+      test: ["CMD-SHELL", "psql -h localhost -p 6432 -U postgres -d gpuproxy -c 'SELECT 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gpuproxy-net
 
   redis:
     image: redis:7-alpine
     container_name: gpuproxy-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     ports:
@@ -31,34 +80,58 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - gpuproxy-net
 
   server:
     build: .
     container_name: gpuproxy-server
     depends_on:
-      postgres:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
     environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
+      # Database (via PgBouncer)
+      - DB_HOST=pgbouncer
+      - DB_PORT=6432
       - DB_USER=postgres
       - DB_PASSWORD=changeme
       - DB_NAME=gpuproxy
+      - DB_USE_PGBOUNCER=true
+      - DB_PGBOUNCER_POOL_MODE=transaction
+      - DB_MAX_CONNS=200
+      - DB_MIN_CONNS=20
+      - DB_MAX_CONN_LIFETIME=15m
+      - DB_MAX_CONN_IDLE_TIME=5m
+      - DB_HEALTH_CHECK_PERIOD=1m
+      - DB_CONNECT_TIMEOUT=5s
+      # Redis (optimized pool)
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_POOL_SIZE=50
+      - REDIS_MIN_IDLE_CONNS=10
       - SESSION_MODE=balanced
+      # Auth
       - JWT_SECRET=${JWT_SECRET:-changeme-generate-secure-key}
+      # GPU Providers
       - VASTAI_API_KEY=${VASTAI_API_KEY}
       - IONET_API_KEY=${IONET_API_KEY}
+      # Billing
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - AFTERDARK_API_KEY=${AFTERDARK_API_KEY}
     ports:
       - "8080:8080"
+      - "9090:9090"
     volumes:
       - ./web:/app/web
     restart: unless-stopped
+    networks:
+      - gpuproxy-net
+
+networks:
+  gpuproxy-net:
+    driver: bridge
 
 volumes:
   postgres_data:
