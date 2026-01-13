@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIServe.Farm - GPU & AI Model Marketplace</title>
+    <meta name="description" content="Rent GPUs and access AI models on-demand. RTX 4090, A100, H100 available instantly.">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container nav-container">
+            <div class="logo">
+                <a href="/">
+                    <span class="logo-icon">🌾</span>
+                    <span class="logo-text">AIServe.Farm</span>
+                </a>
+            </div>
+            <div class="nav-links">
+                <a href="#models" class="nav-link">Models</a>
+                <a href="#pricing" class="nav-link">Pricing</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="/docs" class="nav-link">Docs</a>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-ghost" id="loginBtn">Login</button>
+                <button class="btn btn-primary" id="signupBtn">Sign Up</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    GPU Power & AI Models<br>
+                    <span class="gradient-text">On Demand</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Rent RTX 4090, A100, H100 GPUs instantly. Access 1000+ AI models.<br>
+                    Pay only for what you use. No commitments.
+                </p>
+                <div class="hero-actions">
+                    <button class="btn btn-large btn-primary" id="getStartedBtn">
+                        Get Started Free
+                    </button>
+                    <button class="btn btn-large btn-secondary">
+                        View Pricing
+                    </button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <div class="stat-number">1000+</div>
+                        <div class="stat-label">Available GPUs</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">$0.79/hr</div>
+                        <div class="stat-label">Starting Price</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">99.9%</div>
+                        <div class="stat-label">Uptime SLA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Why AIServe.Farm?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Instant Access</h3>
+                    <p>Deploy GPUs in seconds. No waiting, no setup. Start training or inference immediately.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Pay Per Use</h3>
+                    <p>Bill by the minute. No monthly commitments. Scale up or down based on your needs.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Secure & Private</h3>
+                    <p>Your data never leaves your instance. End-to-end encryption. SOC2 compliant.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Global Network</h3>
+                    <p>GPUs in 10+ regions worldwide. Low latency everywhere. Deploy close to your users.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>1000+ Models</h3>
+                    <p>Pre-configured AI models ready to use. LLMs, diffusion, vision, and more.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real-time Monitoring</h3>
+                    <p>Track GPU usage, costs, and performance in real-time. Complete visibility.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Models Section -->
+    <section id="models" class="models">
+        <div class="container">
+            <h2 class="section-title">Available GPUs</h2>
+            <p class="section-subtitle">Choose from our fleet of high-performance GPUs</p>
+
+            <div class="gpu-grid" id="gpuGrid">
+                <!-- GPUs will be loaded dynamically -->
+                <div class="gpu-card">
+                    <div class="gpu-header">
+                        <h3>RTX 4090</h3>
+                        <span class="badge badge-available">Available</span>
+                    </div>
+                    <div class="gpu-specs">
+                        <div class="spec">
+                            <span class="spec-label">VRAM</span>
+                            <span class="spec-value">24GB GDDR6X</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">CUDA Cores</span>
+                            <span class="spec-value">16,384</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Performance</span>
+                            <span class="spec-value">82 TFLOPS</span>
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <span class="price">$0.79</span>
+                        <span class="price-unit">/hour</span>
+                    </div>
+                    <button class="btn btn-primary btn-full rent-btn" data-gpu="rtx4090">
+                        Rent Now
+                    </button>
+                </div>
+
+                <div class="gpu-card featured">
+                    <div class="featured-badge">Most Popular</div>
+                    <div class="gpu-header">
+                        <h3>A100 40GB</h3>
+                        <span class="badge badge-available">Available</span>
+                    </div>
+                    <div class="gpu-specs">
+                        <div class="spec">
+                            <span class="spec-label">VRAM</span>
+                            <span class="spec-value">40GB HBM2</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Tensor Cores</span>
+                            <span class="spec-value">432</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Performance</span>
+                            <span class="spec-value">312 TFLOPS</span>
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <span class="price">$1.49</span>
+                        <span class="price-unit">/hour</span>
+                    </div>
+                    <button class="btn btn-primary btn-full rent-btn" data-gpu="a100-40gb">
+                        Rent Now
+                    </button>
+                </div>
+
+                <div class="gpu-card">
+                    <div class="gpu-header">
+                        <h3>A100 80GB</h3>
+                        <span class="badge badge-available">Available</span>
+                    </div>
+                    <div class="gpu-specs">
+                        <div class="spec">
+                            <span class="spec-label">VRAM</span>
+                            <span class="spec-value">80GB HBM2e</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Tensor Cores</span>
+                            <span class="spec-value">432</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Performance</span>
+                            <span class="spec-value">312 TFLOPS</span>
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <span class="price">$1.99</span>
+                        <span class="price-unit">/hour</span>
+                    </div>
+                    <button class="btn btn-primary btn-full rent-btn" data-gpu="a100-80gb">
+                        Rent Now
+                    </button>
+                </div>
+
+                <div class="gpu-card">
+                    <div class="gpu-header">
+                        <h3>H100 80GB</h3>
+                        <span class="badge badge-limited">Limited</span>
+                    </div>
+                    <div class="gpu-specs">
+                        <div class="spec">
+                            <span class="spec-label">VRAM</span>
+                            <span class="spec-value">80GB HBM3</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Tensor Cores</span>
+                            <span class="spec-value">640</span>
+                        </div>
+                        <div class="spec">
+                            <span class="spec-label">Performance</span>
+                            <span class="spec-value">989 TFLOPS</span>
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <span class="price">$3.99</span>
+                        <span class="price-unit">/hour</span>
+                    </div>
+                    <button class="btn btn-primary btn-full rent-btn" data-gpu="h100">
+                        Rent Now
+                    </button>
+                </div>
+            </div>
+
+            <div class="view-all">
+                <button class="btn btn-secondary" id="viewAllGPUs">
+                    View All GPUs (50+)
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing">
+        <div class="container">
+            <h2 class="section-title">Simple, Transparent Pricing</h2>
+            <p class="section-subtitle">Pay only for what you use. No hidden fees.</p>
+
+            <div class="pricing-grid">
+                <div class="pricing-card">
+                    <h3 class="pricing-title">Starter</h3>
+                    <div class="pricing-price">
+                        <span class="price-amount">$0</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ $10 free credits</li>
+                        <li>✓ Access to RTX 4090</li>
+                        <li>✓ 100+ AI models</li>
+                        <li>✓ Community support</li>
+                        <li>✓ API access</li>
+                    </ul>
+                    <button class="btn btn-outline btn-full">Start Free</button>
+                </div>
+
+                <div class="pricing-card featured">
+                    <div class="featured-badge">Popular</div>
+                    <h3 class="pricing-title">Pro</h3>
+                    <div class="pricing-price">
+                        <span class="price-amount">$49</span>
+                        <span class="price-period">/month</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ $100 included credits</li>
+                        <li>✓ All GPU models</li>
+                        <li>✓ 1000+ AI models</li>
+                        <li>✓ Priority support</li>
+                        <li>✓ Advanced monitoring</li>
+                        <li>✓ Reserved instances</li>
+                    </ul>
+                    <button class="btn btn-primary btn-full">Go Pro</button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3 class="pricing-title">Enterprise</h3>
+                    <div class="pricing-price">
+                        <span class="price-amount">Custom</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li>✓ Volume discounts</li>
+                        <li>✓ Dedicated GPUs</li>
+                        <li>✓ Private deployment</li>
+                        <li>✓ 24/7 phone support</li>
+                        <li>✓ SLA guarantees</li>
+                        <li>✓ Custom integrations</li>
+                    </ul>
+                    <button class="btn btn-outline btn-full">Contact Sales</button>
+                </div>
+            </div>
+
+            <div class="pricing-note">
+                <p>💰 <strong>Pay-as-you-go pricing:</strong> All plans include per-minute billing for GPU usage. No commitments.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <a href="#models">GPU Marketplace</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="#features">Features</a>
+                    <a href="/docs">Documentation</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Company</h4>
+                    <a href="/about">About</a>
+                    <a href="/blog">Blog</a>
+                    <a href="/careers">Careers</a>
+                    <a href="/contact">Contact</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Resources</h4>
+                    <a href="/api">API Reference</a>
+                    <a href="/guides">Guides</a>
+                    <a href="/status">Status</a>
+                    <a href="/support">Support</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Legal</h4>
+                    <a href="/privacy">Privacy Policy</a>
+                    <a href="/terms">Terms of Service</a>
+                    <a href="/security">Security</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 AIServe.Farm. A Division of After Dark Systems. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Login to AIServe.Farm</h2>
+            <p class="modal-subtitle">Sign in with After Dark Systems</p>
+            <button class="btn btn-primary btn-full" id="keycloakLoginBtn">
+                Continue with After Dark Systems
+            </button>
+            <div class="modal-divider">or</div>
+            <form id="loginForm">
+                <input type="email" placeholder="Email" class="input" required>
+                <input type="password" placeholder="Password" class="input" required>
+                <button type="submit" class="btn btn-primary btn-full">Login</button>
+            </form>
+            <p class="modal-footer">
+                Don't have an account? <a href="#" id="switchToSignup">Sign up</a>
+            </p>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div id="signupModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Create Account</h2>
+            <p class="modal-subtitle">Get started with $10 free credits</p>
+            <button class="btn btn-primary btn-full" id="keycloakSignupBtn">
+                Sign up with After Dark Systems
+            </button>
+            <div class="modal-divider">or</div>
+            <form id="signupForm">
+                <input type="text" placeholder="Full Name" class="input" required>
+                <input type="email" placeholder="Email" class="input" required>
+                <input type="password" placeholder="Password" class="input" required>
+                <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+            </form>
+            <p class="modal-footer">
+                Already have an account? <a href="#" id="switchToLogin">Login</a>
+            </p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
