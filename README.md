@@ -71,8 +71,8 @@ After building, you'll have three binaries:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/aiserve/gpuproxy.git
-cd gpuproxy
+git clone https://github.com/straticus1/aiserve-gpuproxyd.git
+cd aiserve-gpuproxyd
 ```
 
 2. Copy environment file:
@@ -579,5 +579,5 @@ Contributions welcome! Please submit pull requests or open issues.
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/aiserve/gpuproxy/issues
-- Documentation: https://github.com/aiserve/gpuproxy/wiki
+- GitHub Issues: https://github.com/straticus1/aiserve-gpuproxyd/issues
+- Documentation: https://github.com/straticus1/aiserve-gpuproxyd/wiki

@@ -442,6 +442,6 @@ proxy.destroy_instance('vast.ai', instance['contract_id'])
 ## Support
 
 For integration assistance:
-- GitHub Issues: https://github.com/aiserve/gpuproxy/issues
-- Documentation: https://github.com/aiserve/gpuproxy/wiki
+- GitHub Issues: https://github.com/straticus1/aiserve-gpuproxyd/issues
+- Documentation: https://github.com/straticus1/aiserve-gpuproxyd/wiki
 - Discord: https://discord.gg/gpuproxy

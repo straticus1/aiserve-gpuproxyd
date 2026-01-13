@@ -200,4 +200,4 @@ Access at: http://localhost:8080/ (when in developer mode)
 
 - README.md - Full documentation
 - INTEGRATION.md - Integration guide
-- GitHub: https://github.com/aiserve/gpuproxy
+- GitHub: https://github.com/straticus1/aiserve-gpuproxyd
