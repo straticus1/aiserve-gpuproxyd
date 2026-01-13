@@ -220,7 +220,7 @@ func (gr *GuardRails) Middleware() func(http.Handler) http.Handler {
 			// The actual cost will be recorded after the request completes
 			estimatedCost := 0.01 // Minimal check, actual tracking happens post-request
 
-			ctx := context.Background()
+			ctx := r.Context()
 			info, err := gr.CheckSpending(ctx, userID, estimatedCost)
 			if err != nil {
 				respondJSON(w, http.StatusInternalServerError, map[string]string{

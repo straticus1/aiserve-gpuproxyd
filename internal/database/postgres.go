@@ -215,6 +215,33 @@ func (db *PostgresDB) Migrate() error {
 
 		`CREATE INDEX IF NOT EXISTS idx_user_gpu_prefs_user_id ON user_gpu_preferences(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_gpu_prefs_active ON user_gpu_preferences(user_id, is_active) WHERE is_active = TRUE`,
+
+		// Performance indexes - CRITICAL for query optimization
+		// API key validation optimization (supports N+1 query fix)
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_api_keys_active_not_expired
+			ON api_keys(user_id, is_active, expires_at)
+			WHERE is_active = true`,
+
+		// Session cleanup optimization
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sessions_expires_at_user
+			ON sessions(expires_at, user_id)
+			WHERE expires_at > NOW()`,
+
+		// GPU usage queries optimization
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_gpu_usage_user_start
+			ON gpu_usage(user_id, start_time DESC)`,
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_gpu_usage_end_null
+			ON gpu_usage(user_id, end_time)
+			WHERE end_time IS NULL`,
+
+		// Billing transaction queries optimization
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_billing_created_user
+			ON billing_transactions(user_id, created_at DESC)`,
+
+		// User GPU preferences optimization
+		`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_gpu_prefs_user_active_updated
+			ON user_gpu_preferences(user_id, is_active, updated_at DESC)
+			WHERE is_active = true`,
 	}
 
 	for _, query := range queries {

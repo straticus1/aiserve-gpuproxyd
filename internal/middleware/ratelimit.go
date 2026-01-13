@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -28,7 +27,7 @@ func (rl *RateLimiter) Limit(requestsPerMinute int) func(http.Handler) http.Hand
 			}
 
 			key := fmt.Sprintf("ratelimit:%s:%d", userID.String(), time.Now().Unix()/60)
-			ctx := context.Background()
+			ctx := r.Context()
 
 			count, err := rl.redis.Increment(ctx, key)
 			if err != nil {
