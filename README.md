@@ -16,7 +16,7 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 - **Credit System**: Track usage, quotas, and credits per client
 - **Rate Limiting**: Configurable per-user rate limits
 - **Guard Rails**: Spending control across 17 time windows (5min to 72h)
-- **Agent Protocols**: MCP, A2A, and ACP support for AI agent integration
+- **Agent Protocols**: MCP, A2A, ACP, FIPA ACL, KQML, and LangChain support
 - **Centralized Logging**: Syslog support with file logging and AISERVE_LOG_FILE
 - **CLI Tools**: Advanced client with load monitoring and admin utility
 - **Developer Mode**: Enhanced debugging and development features
@@ -608,9 +608,9 @@ Integrate with AI assistants like Claude Desktop:
 
 See [MCP.md](MCP.md) for complete MCP documentation.
 
-## Agent-to-Agent Communication
+## Agent Communication Protocols
 
-Support for A2A and ACP protocols:
+Support for 6 major agent protocols with auto-detection:
 
 ### A2A (Agent-to-Agent Protocol)
 ```bash
@@ -636,6 +636,58 @@ curl -X POST http://localhost:8080/api/v1/acp \
       "command": "gpu.list",
       "parameters": {"provider": "all"}
     }
+  }'
+```
+
+### FIPA ACL (Foundation for Intelligent Physical Agents)
+```bash
+curl -X POST http://localhost:8080/api/v1/fipa \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "performative": "query-ref",
+    "sender": {"name": "my-agent"},
+    "receiver": [{"name": "aiserve-gpuproxy"}],
+    "content": {"query": "gpu-instances"}
+  }'
+```
+
+### KQML (Knowledge Query and Manipulation Language)
+```bash
+curl -X POST http://localhost:8080/api/v1/kqml \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "performative": "ask",
+    "sender": "my-agent",
+    "content": {"query": "gpu-instances"}
+  }'
+```
+
+### LangChain Agent Protocol
+```bash
+# Get tools
+curl http://localhost:8080/api/v1/langchain/tools \
+  -H "X-API-Key: YOUR_KEY"
+
+# Execute tool
+curl -X POST http://localhost:8080/api/v1/langchain \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "input": {
+      "action": "execute",
+      "tool": "list_gpu_instances",
+      "tool_input": {"provider": "all"}
+    }
+  }'
+```
+
+### Unified Agent Endpoint (Auto-Detection)
+```bash
+curl -X POST http://localhost:8080/api/v1/agent \
+  -H "X-API-Key: YOUR_KEY" \
+  -d '{
+    "action": "gpu.list",
+    "from_agent": "my-agent",
+    "parameters": {"provider": "vast.ai"}
   }'
 ```
 

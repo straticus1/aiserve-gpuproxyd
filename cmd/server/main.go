@@ -21,6 +21,9 @@ import (
 	"github.com/aiserve/gpuproxy/internal/mcp"
 	"github.com/aiserve/gpuproxy/internal/a2a"
 	"github.com/aiserve/gpuproxy/internal/acp"
+	"github.com/aiserve/gpuproxy/internal/fipa"
+	"github.com/aiserve/gpuproxy/internal/kqml"
+	"github.com/aiserve/gpuproxy/internal/langchain"
 	"github.com/aiserve/gpuproxy/internal/logging"
 	"github.com/aiserve/gpuproxy/internal/middleware"
 	"github.com/gorilla/mux"
@@ -103,6 +106,9 @@ func main() {
 	mcpServer := mcp.NewMCPServer(gpuService, billingService, authService, guardRails)
 	a2aServer := a2a.NewA2AServer(gpuService, billingService, authService, guardRails)
 	acpServer := acp.NewACPServer(gpuService, billingService, authService, guardRails)
+	fipaServer := fipa.NewFIPAServer(gpuService, billingService, authService, guardRails)
+	kqmlServer := kqml.NewKQMLServer(gpuService, billingService, authService, guardRails)
+	langchainServer := langchain.NewLangChainServer(gpuService, billingService, authService, guardRails)
 
 	authHandler := api.NewAuthHandler(authService)
 	billingHandler := api.NewBillingHandler(billingService)
@@ -112,7 +118,7 @@ func main() {
 	wsHandler := api.NewWebSocketHandler()
 	guardRailsHandler := api.NewGuardRailsHandler(guardRails)
 	mcpHandler := api.NewMCPHandler(mcpServer)
-	agentHandler := api.NewAgentHandler(a2aServer, acpServer)
+	agentHandler := api.NewAgentHandler(a2aServer, acpServer, fipaServer, kqmlServer, langchainServer)
 
 	router := mux.NewRouter()
 
@@ -165,6 +171,12 @@ func main() {
 
 	protected.HandleFunc("/a2a", agentHandler.HandleA2A).Methods("POST")
 	protected.HandleFunc("/acp", agentHandler.HandleACP).Methods("POST")
+	protected.HandleFunc("/fipa", agentHandler.HandleFIPA).Methods("POST")
+	protected.HandleFunc("/kqml", agentHandler.HandleKQML).Methods("POST")
+	protected.HandleFunc("/langchain", agentHandler.HandleLangChain).Methods("POST")
+	protected.HandleFunc("/langchain/tools", agentHandler.HandleLangChainTools).Methods("GET")
+
+	protected.HandleFunc("/agent", agentHandler.HandleUnifiedAgent).Methods("POST")
 
 	router.HandleFunc("/agent/discover", agentHandler.HandleAgentDiscovery).Methods("GET")
 	router.HandleFunc("/ws", wsHandler.HandleConnection)
