@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Proxy Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .subtitle { opacity: 0.9; font-size: 1.1em; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            border: 1px solid #334155;
+        }
+        .card h2 {
+            color: #a78bfa;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .stat { font-size: 2.5em; font-weight: bold; color: #60a5fa; margin: 10px 0; }
+        .label { color: #94a3b8; font-size: 0.9em; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        th {
+            background: #334155;
+            color: #a78bfa;
+            font-weight: 600;
+        }
+        tr:hover { background: #334155; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        .badge.success { background: #10b981; color: white; }
+        .badge.warning { background: #f59e0b; color: white; }
+        .badge.error { background: #ef4444; color: white; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: translateY(-2px); }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 12px 24px;
+            background: #334155;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #94a3b8;
+            transition: all 0.3s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 GPU Proxy Admin Dashboard</h1>
+            <p class="subtitle">High-Performance GPU Aggregation Platform</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>📊 System Stats</h2>
+                <div class="stat" id="totalUsers">-</div>
+                <div class="label">Total Users</div>
+            </div>
+            <div class="card">
+                <h2>⚡ Active Instances</h2>
+                <div class="stat" id="activeInstances">-</div>
+                <div class="label">Running GPU Instances</div>
+            </div>
+            <div class="card">
+                <h2>💰 Revenue</h2>
+                <div class="stat" id="totalRevenue">$-</div>
+                <div class="label">Total Transactions</div>
+            </div>
+            <div class="card">
+                <h2>🔑 API Keys</h2>
+                <div class="stat" id="apiKeys">-</div>
+                <div class="label">Active API Keys</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('users')">Users</button>
+                <button class="tab" onclick="showTab('instances')">GPU Instances</button>
+                <button class="tab" onclick="showTab('transactions')">Transactions</button>
+                <button class="tab" onclick="showTab('logs')">Activity Logs</button>
+            </div>
+
+            <div id="usersTab">
+                <h2>👥 Recent Users</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable">
+                        <tr><td colspan="5">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="instancesTab" class="hidden">
+                <h2>🖥️ GPU Instances</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Provider</th>
+                            <th>GPU Model</th>
+                            <th>VRAM</th>
+                            <th>Price/Hr</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="instancesTable">
+                        <tr><td colspan="5">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="transactionsTab" class="hidden">
+                <h2>💳 Recent Transactions</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsTable">
+                        <tr><td colspan="5">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="logsTab" class="hidden">
+                <h2>📝 Activity Logs</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>User</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable">
+                        <tr><td colspan="4">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('usersTab').classList.add('hidden');
+            document.getElementById('instancesTab').classList.add('hidden');
+            document.getElementById('transactionsTab').classList.add('hidden');
+            document.getElementById('logsTab').classList.add('hidden');
+
+            document.getElementById(tab + 'Tab').classList.remove('hidden');
+        }
+
+        async function loadStats() {
+            document.getElementById('totalUsers').textContent = '1,234';
+            document.getElementById('activeInstances').textContent = '42';
+            document.getElementById('totalRevenue').textContent = '$89,543';
+            document.getElementById('apiKeys').textContent = '156';
+        }
+
+        async function loadUsers() {
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = `
+                <tr>
+                    <td>user@example.com</td>
+                    <td>John Doe</td>
+                    <td><span class="badge success">Active</span></td>
+                    <td>User</td>
+                    <td>2024-01-12</td>
+                </tr>
+                <tr>
+                    <td>admin@example.com</td>
+                    <td>Admin User</td>
+                    <td><span class="badge success">Active</span></td>
+                    <td>Admin</td>
+                    <td>2024-01-10</td>
+                </tr>
+            `;
+        }
+
+        async function loadInstances() {
+            const tbody = document.getElementById('instancesTable');
+            tbody.innerHTML = `
+                <tr>
+                    <td>vast.ai</td>
+                    <td>RTX 4090</td>
+                    <td>24GB</td>
+                    <td>$0.79</td>
+                    <td><span class="badge success">Available</span></td>
+                </tr>
+                <tr>
+                    <td>io.net</td>
+                    <td>A100</td>
+                    <td>80GB</td>
+                    <td>$1.99</td>
+                    <td><span class="badge success">Available</span></td>
+                </tr>
+            `;
+        }
+
+        async function loadTransactions() {
+            const tbody = document.getElementById('transactionsTable');
+            tbody.innerHTML = `
+                <tr>
+                    <td>user@example.com</td>
+                    <td>$50.00</td>
+                    <td>Stripe</td>
+                    <td><span class="badge success">Completed</span></td>
+                    <td>2024-01-12 10:30</td>
+                </tr>
+                <tr>
+                    <td>admin@example.com</td>
+                    <td>$100.00</td>
+                    <td>Crypto</td>
+                    <td><span class="badge warning">Pending</span></td>
+                    <td>2024-01-12 09:15</td>
+                </tr>
+            `;
+        }
+
+        async function loadLogs() {
+            const tbody = document.getElementById('logsTable');
+            tbody.innerHTML = `
+                <tr>
+                    <td>10:45:23</td>
+                    <td>Instance Created</td>
+                    <td>user@example.com</td>
+                    <td>vast.ai RTX 4090</td>
+                </tr>
+                <tr>
+                    <td>10:30:12</td>
+                    <td>Payment Completed</td>
+                    <td>user@example.com</td>
+                    <td>$50.00 via Stripe</td>
+                </tr>
+            `;
+        }
+
+        loadStats();
+        loadUsers();
+        loadInstances();
+        loadTransactions();
+        loadLogs();
+
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>
