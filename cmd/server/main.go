@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -38,6 +41,9 @@ var (
 )
 
 func main() {
+	// Go runtime optimizations for high-concurrency workloads
+	setupRuntimeOptimizations()
+
 	flag.BoolVar(&developerMode, "dv", false, "Enable developer mode")
 	flag.BoolVar(&developerMode, "developer-mode", false, "Enable developer mode")
 	flag.BoolVar(&debugMode, "dm", false, "Enable debug mode")
@@ -245,9 +251,15 @@ func main() {
 	srv := &http.Server{
 		Addr:         addr,
 		Handler:      router,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
-		IdleTimeout:  cfg.Server.IdleTimeout,
+
+		// Request timeouts optimized for GPU workloads
+		ReadTimeout:       30 * time.Second,  // Increased from 15s for GPU operations
+		ReadHeaderTimeout: 10 * time.Second,  // Protect against slow clients (Slowloris)
+		WriteTimeout:      120 * time.Second, // Increased from 15s for streaming responses
+		IdleTimeout:       120 * time.Second, // Increased from 60s for persistent connections
+
+		// Resource limits
+		MaxHeaderBytes: 1 << 20, // 1MB max headers (prevent memory exhaustion)
 	}
 
 	go func() {
@@ -276,4 +288,52 @@ func main() {
 	}
 
 	log.Println("Servers exited gracefully")
+}
+
+func setupRuntimeOptimizations() {
+	// GOMAXPROCS tuning for container environments
+	// In Docker, Go may not detect CPU limits correctly
+	numCPU := runtime.NumCPU()
+	if cpuLimit := os.Getenv("CPU_LIMIT"); cpuLimit != "" {
+		if limit, err := strconv.Atoi(cpuLimit); err == nil && limit > 0 {
+			numCPU = limit
+		}
+	}
+	runtime.GOMAXPROCS(numCPU)
+	log.Printf("GOMAXPROCS set to %d", numCPU)
+
+	// GC tuning for high-throughput, low-latency
+	// Increase GC target percentage to reduce GC frequency
+	// Default is 100, we use 200 for high-throughput
+	debug.SetGCPercent(200)
+
+	// Set memory limit if specified (Go 1.19+)
+	if memLimit := os.Getenv("GOMEMLIMIT"); memLimit != "" {
+		if limit := parseMemoryLimit(memLimit); limit > 0 {
+			debug.SetMemoryLimit(limit)
+			log.Printf("Go memory limit set to %s", memLimit)
+		}
+	}
+
+	log.Println("Runtime optimizations applied")
+}
+
+func parseMemoryLimit(limit string) int64 {
+	// Parse "2GB", "512MB", etc.
+	var value int64
+	var unit string
+	if n, err := fmt.Sscanf(limit, "%d%s", &value, &unit); n != 2 || err != nil {
+		return 0
+	}
+
+	switch strings.ToUpper(unit) {
+	case "GB", "G":
+		return value * 1024 * 1024 * 1024
+	case "MB", "M":
+		return value * 1024 * 1024
+	case "KB", "K":
+		return value * 1024
+	default:
+		return value
+	}
 }
