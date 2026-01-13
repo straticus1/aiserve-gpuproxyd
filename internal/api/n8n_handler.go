@@ -3,11 +3,9 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/aiserve/gpuproxy/internal/database"
 	"github.com/aiserve/gpuproxy/internal/gpu"
-	"github.com/aiserve/gpuproxy/internal/metrics"
 )
 
 // N8nHandler provides webhook endpoints optimized for n8n workflow integration
@@ -23,12 +21,6 @@ func NewN8nHandler(gpuService *gpu.Service, db *database.PostgresDB, redis *data
 		db:         db,
 		redis:      redis,
 	}
-}
-
-type N8nHandler struct {
-	gpuService *gpu.Service
-	db         *database.PostgresDB
-	redis      *database.RedisClient
 }
 
 // Webhook handler for n8n workflows

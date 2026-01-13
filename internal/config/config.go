@@ -26,6 +26,7 @@ type Config struct {
 	LoadBalancer LoadBalancerConfig
 	GuardRails   GuardRailsConfig
 	Logging      LoggingConfig
+	ModelServing ModelServingConfig
 }
 
 type ServerConfig struct {
@@ -130,6 +131,13 @@ type LoggingConfig struct {
 	LogFile        string
 }
 
+type ModelServingConfig struct {
+	Enabled         bool
+	StoragePath     string
+	MaxUploadSize   int64
+	DefaultReplicas int
+}
+
 func Load() (*Config, error) {
 	godotenv.Load()
 
@@ -227,6 +235,12 @@ func Load() (*Config, error) {
 			SyslogFacility: getEnv("SYSLOG_FACILITY", "LOG_LOCAL0"),
 			LogFile:        getEnv("LOG_FILE", ""),
 		},
+		ModelServing: ModelServingConfig{
+			Enabled:         getEnvAsBool("MODEL_SERVING_ENABLED", true),
+			StoragePath:     getEnv("MODEL_STORAGE_PATH", "/app/models"),
+			MaxUploadSize:   getEnvAsInt64("MODEL_MAX_UPLOAD_SIZE", 10*1024*1024*1024), // 10GB default
+			DefaultReplicas: getEnvAsInt("MODEL_DEFAULT_REPLICAS", 1),
+		},
 	}
 
 	return cfg, cfg.Validate()
@@ -301,5 +315,15 @@ func getEnvAsFloat(key string, defaultValue float64) float64 {
 	}
 	var value float64
 	fmt.Sscanf(valueStr, "%f", &value)
+	return value
+}
+
+func getEnvAsInt64(key string, defaultValue int64) int64 {
+	valueStr := getEnv(key, "")
+	if valueStr == "" {
+		return defaultValue
+	}
+	var value int64
+	fmt.Sscanf(valueStr, "%d", &value)
 	return value
 }

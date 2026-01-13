@@ -32,6 +32,7 @@ import (
 	"github.com/aiserve/gpuproxy/internal/logging"
 	"github.com/aiserve/gpuproxy/internal/metrics"
 	"github.com/aiserve/gpuproxy/internal/middleware"
+	"github.com/aiserve/gpuproxy/internal/models"
 	grpcServer "github.com/aiserve/gpuproxy/internal/grpc"
 	"github.com/gorilla/mux"
 )
@@ -149,6 +150,18 @@ func main() {
 	mcpHandler := api.NewMCPHandler(mcpServer)
 	agentHandler := api.NewAgentHandler(a2aServer, acpServer, cuicServer, fipaServer, kqmlServer, langchainServer)
 
+	// Initialize model serving if enabled
+	var modelServeHandler *api.ModelServeHandler
+	if cfg.ModelServing.Enabled {
+		// Configure model registry storage path
+		modelRegistry := models.GetModelRegistry()
+		modelRegistry.SetStorageRoot(cfg.ModelServing.StoragePath)
+
+		// Create model serving handler
+		modelServeHandler = api.NewModelServeHandler()
+		log.Printf("Model serving enabled. Storage path: %s", cfg.ModelServing.StoragePath)
+	}
+
 	// Initialize structured logger
 	logLevel := logging.INFO
 	if debugMode {
@@ -232,6 +245,19 @@ func main() {
 	protected.HandleFunc("/langchain/tools", agentHandler.HandleLangChainTools).Methods("GET")
 
 	protected.HandleFunc("/agent", agentHandler.HandleUnifiedAgent).Methods("POST")
+
+	// Model serving endpoints (if enabled)
+	if cfg.ModelServing.Enabled && modelServeHandler != nil {
+		protected.HandleFunc("/models/upload", modelServeHandler.UploadModel).Methods("POST")
+		protected.HandleFunc("/models", modelServeHandler.ListModels).Methods("GET")
+		protected.HandleFunc("/models/{model_id}", modelServeHandler.GetModel).Methods("GET")
+		protected.HandleFunc("/models/{model_id}", modelServeHandler.DeleteModel).Methods("DELETE")
+		protected.HandleFunc("/models/{model_id}/predict", modelServeHandler.PredictModel).Methods("POST")
+		protected.HandleFunc("/models/{model_id}/metrics", modelServeHandler.GetModelMetrics).Methods("GET")
+
+		// Public endpoint for supported formats (no auth required)
+		apiRouter.HandleFunc("/models/formats", modelServeHandler.SupportedFormats).Methods("GET")
+	}
 
 	router.HandleFunc("/agent/discover", agentHandler.HandleAgentDiscovery).Methods("GET")
 	router.HandleFunc("/ws", wsHandler.HandleConnection)
