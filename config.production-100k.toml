@@ -1,0 +1,157 @@
+# Production Configuration for 100,000+ Concurrent Connections
+# Optimized for aiserve.farm GPU backbone infrastructure
+
+[server]
+host = "::"  # Listen on all interfaces (IPv6)
+port = 8080
+grpc_port = 9090
+
+# Optimized for 100k+ connections with long-running GPU workloads
+read_timeout = "60s"          # Increased for large GPU requests
+write_timeout = "300s"        # 5min for streaming GPU responses
+idle_timeout = "300s"         # Keep persistent connections alive
+read_header_timeout = "10s"   # Protect against Slowloris
+max_header_bytes = 1048576    # 1MB max headers
+
+[database]
+host = "postgres"  # Use PgBouncer for connection pooling
+port = 6432        # PgBouncer port (transaction mode)
+user = "gpuproxy"
+password = "${DB_PASSWORD}"
+dbname = "gpuproxy"
+sslmode = "disable"
+
+# CRITICAL: Scaled for 100k+ connections
+max_conns = 10000              # 10k connection pool (up from 1k)
+min_conns = 1000               # Keep 1k connections warm
+max_conn_lifetime = "15m"      # Recycle connections
+max_conn_idle_time = "5m"      # Close idle connections
+health_check_period = "1m"     # Health check frequency
+connect_timeout = "10s"        # Connection timeout
+
+# PgBouncer configuration (ESSENTIAL for 100k scale)
+use_pgbouncer = true
+pgbouncer_pool_mode = "transaction"  # Most efficient for high concurrency
+pgbouncer_host = "pgbouncer"
+pgbouncer_port = 6432
+
+[redis]
+host = "redis"
+port = 6379
+password = ""
+db = 0
+
+# Scaled Redis pool for 100k connections
+pool_size = 1000               # 1k Redis connections (up from 100)
+min_idle_conns = 200           # Keep 200 warm
+max_retries = 3
+pool_timeout = "5s"
+read_timeout = "3s"
+write_timeout = "3s"
+
+[auth]
+jwt_secret = "${JWT_SECRET}"
+jwt_expiration = "24h"
+api_key_expiration = "365d"
+bcrypt_cost = 10               # Lower for high-throughput (was 12)
+
+[gpu]
+vastai_api_key = "${VASTAI_API_KEY}"
+ionet_api_key = "${IONET_API_KEY}"
+timeout = "300s"               # 5min GPU operation timeout
+preferred_backend = "vastai"
+auto_scale_enabled = true      # Enable agent-based auto-scaling
+max_instances_per_user = 50    # Increased limit for platform scale
+
+[billing]
+stripe_secret_key = "${STRIPE_SECRET_KEY}"
+afterdark_api_key = "${AFTERDARK_API_KEY}"
+enable_billing = true
+currency = "USD"
+
+[loadbalancer]
+strategy = "least_connections"  # Optimal for high concurrency
+health_check_interval = "10s"
+timeout = "5s"
+
+[guard_rails]
+# Relaxed for platform backbone (per-user limits handled at aiserve.farm layer)
+max_hourly_spend = 10000.0     # $10k/hour per user
+max_daily_spend = 100000.0     # $100k/day per user
+max_monthly_spend = 2000000.0  # $2M/month per user
+alert_threshold = 0.8          # Alert at 80% of limit
+
+[logging]
+# Structured JSON logging for ELK/Splunk ingestion
+level = "INFO"                 # Reduce verbosity at scale
+format = "json"
+output = "stdout"
+syslog_enabled = true
+syslog_network = "tcp"
+syslog_address = "logstash:5000"  # Send to Logstash
+syslog_tag = "gpuproxy-100k"
+syslog_facility = "local0"
+
+[metrics]
+enabled = true
+collection_interval = "30s"    # Reduced from 10s to lower overhead
+export_format = "prometheus"
+
+[performance]
+# Go runtime optimization for 100k+ connections
+gomaxprocs = 0                 # Auto-detect (or set to CPU count)
+gomemlimit = "16GB"            # Set memory limit for GC tuning
+gc_percent = 300               # Reduce GC frequency (was 200)
+
+# HTTP/2 settings for high concurrency
+http2_enabled = true
+http2_max_concurrent_streams = 1000
+http2_max_frame_size = 16384
+http2_max_read_frame_size = 16384
+
+# TCP settings (requires system-level configuration)
+# Handled via sysctl in deployment
+tcp_keepalive = "60s"
+tcp_keepalive_probes = 3
+tcp_keepalive_interval = "10s"
+
+[rate_limiting]
+enabled = true
+# Per-user rate limits (handled by Redis)
+requests_per_minute = 10000    # 10k req/min per user (was 100)
+burst_size = 1000              # Allow bursts
+
+[cache]
+enabled = true
+ttl = "5m"
+max_size = "2GB"               # Larger cache for high throughput
+eviction_policy = "lru"
+
+[agent]
+# Autonomous agent configuration
+enabled = true
+mcp_server_path = "./bin/mcp-server"
+auto_scaling_enabled = true
+auto_scaling_threshold = 0.8   # Scale at 80% capacity
+cleanup_idle_threshold = "30m" # Clean up GPUs idle > 30min
+agent_loop_interval = "5m"     # Run agent every 5 minutes
+
+[n8n]
+# n8n workflow integration
+webhook_enabled = true
+webhook_path = "/webhooks/n8n"
+webhook_secret = "${N8N_WEBHOOK_SECRET}"
+
+[monitoring]
+# Production monitoring
+prometheus_enabled = true
+prometheus_port = 9090
+grafana_enabled = true
+alertmanager_enabled = true
+
+# Alert thresholds
+alert_error_rate_threshold = 0.05        # 5% error rate
+alert_p99_latency_threshold = "5s"       # P99 > 5s
+alert_connection_pool_threshold = 0.9    # 90% pool utilization
+alert_memory_threshold = 0.85            # 85% memory usage
+alert_cpu_threshold = 0.9                # 90% CPU usage
