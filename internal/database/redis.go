@@ -19,11 +19,11 @@ func NewRedisClient(cfg config.RedisConfig) (*RedisClient, error) {
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Password:     cfg.Password,
 		DB:           cfg.DB,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		PoolSize:     10,
-		MinIdleConns: 5,
+		DialTimeout:  cfg.DialTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		PoolSize:     cfg.PoolSize,
+		MinIdleConns: cfg.MinIdleConns,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

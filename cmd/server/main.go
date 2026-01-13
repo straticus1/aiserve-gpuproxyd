@@ -21,6 +21,7 @@ import (
 	"github.com/aiserve/gpuproxy/internal/mcp"
 	"github.com/aiserve/gpuproxy/internal/a2a"
 	"github.com/aiserve/gpuproxy/internal/acp"
+	"github.com/aiserve/gpuproxy/internal/cuic"
 	"github.com/aiserve/gpuproxy/internal/fipa"
 	"github.com/aiserve/gpuproxy/internal/kqml"
 	"github.com/aiserve/gpuproxy/internal/langchain"
@@ -107,6 +108,7 @@ func main() {
 	mcpServer := mcp.NewMCPServer(gpuService, billingService, authService, guardRails)
 	a2aServer := a2a.NewA2AServer(gpuService, billingService, authService, guardRails)
 	acpServer := acp.NewACPServer(gpuService, billingService, authService, guardRails)
+	cuicServer := cuic.NewCUICServer(gpuService, billingService, authService, guardRails)
 	fipaServer := fipa.NewFIPAServer(gpuService, billingService, authService, guardRails)
 	kqmlServer := kqml.NewKQMLServer(gpuService, billingService, authService, guardRails)
 	langchainServer := langchain.NewLangChainServer(gpuService, billingService, authService, guardRails)
@@ -119,7 +121,7 @@ func main() {
 	wsHandler := api.NewWebSocketHandler()
 	guardRailsHandler := api.NewGuardRailsHandler(guardRails)
 	mcpHandler := api.NewMCPHandler(mcpServer)
-	agentHandler := api.NewAgentHandler(a2aServer, acpServer, fipaServer, kqmlServer, langchainServer)
+	agentHandler := api.NewAgentHandler(a2aServer, acpServer, cuicServer, fipaServer, kqmlServer, langchainServer)
 
 	router := mux.NewRouter()
 
@@ -172,6 +174,7 @@ func main() {
 
 	protected.HandleFunc("/a2a", agentHandler.HandleA2A).Methods("POST")
 	protected.HandleFunc("/acp", agentHandler.HandleACP).Methods("POST")
+	protected.HandleFunc("/cuic", agentHandler.HandleCUIC).Methods("POST")
 	protected.HandleFunc("/fipa", agentHandler.HandleFIPA).Methods("POST")
 	protected.HandleFunc("/kqml", agentHandler.HandleKQML).Methods("POST")
 	protected.HandleFunc("/langchain", agentHandler.HandleLangChain).Methods("POST")
@@ -187,7 +190,7 @@ func main() {
 	}
 
 	// Initialize gRPC server
-	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService)
+	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService, cuicServer)
 	grpcAddr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.GRPCPort)
 
 	go func() {

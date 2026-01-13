@@ -33,6 +33,10 @@ service GPUProxyService {
   rpc GetLoadInfo(GetLoadInfoRequest) returns (GetLoadInfoResponse);
   rpc ReserveGPUs(ReserveGPUsRequest) returns (ReserveGPUsResponse);
 
+  // CUIC Protocol
+  rpc SendCUICMessage(CUICMessageRequest) returns (CUICMessageResponse);
+  rpc StreamCUICMessage(stream CUICMessageRequest) returns (stream CUICMessageResponse);
+
   // Health
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -237,6 +241,42 @@ message ReserveGPUsResponse {
   repeated GPUInstance reserved_instances = 1;
   int32 reserved_count = 2;
   string message = 3;
+}
+
+// CUIC Protocol Messages
+message CUICMessageRequest {
+  string stream_id = 1;
+  string message_id = 2;
+  string version = 3;
+  string sender = 4;
+  string receiver = 5;
+  string message_type = 6; // "stream", "datagram", "request", "response", "control", "heartbeat"
+  int32 priority = 7; // 0-255, higher = more urgent
+  int64 timestamp = 8;
+  bytes payload = 9; // JSON-encoded payload
+  map<string, string> metadata = 10;
+  string congestion_hint = 11; // "none", "moderate", "severe"
+}
+
+message CUICMessageResponse {
+  string stream_id = 1;
+  string message_id = 2;
+  string in_reply_to = 3;
+  string version = 4;
+  string sender = 5;
+  string receiver = 6;
+  CUICStatus status = 7;
+  bytes payload = 8; // JSON-encoded payload
+  int64 timestamp = 9;
+  map<string, string> metadata = 10;
+  string congestion_hint = 11;
+}
+
+message CUICStatus {
+  int32 code = 1;
+  string message = 2;
+  bool success = 3;
+  bool retriable = 4;
 }
 
 // Health Check Messages

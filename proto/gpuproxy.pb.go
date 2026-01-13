@@ -1987,6 +1987,323 @@ func (x *ReserveGPUsResponse) GetMessage() string {
 	return ""
 }
 
+// CUIC Protocol Messages
+type CUICMessageRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamId       string                 `protobuf:"bytes,1,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
+	MessageId      string                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Version        string                 `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Sender         string                 `protobuf:"bytes,4,opt,name=sender,proto3" json:"sender,omitempty"`
+	Receiver       string                 `protobuf:"bytes,5,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	MessageType    string                 `protobuf:"bytes,6,opt,name=message_type,json=messageType,proto3" json:"message_type,omitempty"` // "stream", "datagram", "request", "response", "control", "heartbeat"
+	Priority       int32                  `protobuf:"varint,7,opt,name=priority,proto3" json:"priority,omitempty"`                         // 0-255, higher = more urgent
+	Timestamp      int64                  `protobuf:"varint,8,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Payload        []byte                 `protobuf:"bytes,9,opt,name=payload,proto3" json:"payload,omitempty"` // JSON-encoded payload
+	Metadata       map[string]string      `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	CongestionHint string                 `protobuf:"bytes,11,opt,name=congestion_hint,json=congestionHint,proto3" json:"congestion_hint,omitempty"` // "none", "moderate", "severe"
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CUICMessageRequest) Reset() {
+	*x = CUICMessageRequest{}
+	mi := &file_proto_gpuproxy_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CUICMessageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CUICMessageRequest) ProtoMessage() {}
+
+func (x *CUICMessageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_gpuproxy_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CUICMessageRequest.ProtoReflect.Descriptor instead.
+func (*CUICMessageRequest) Descriptor() ([]byte, []int) {
+	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *CUICMessageRequest) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetSender() string {
+	if x != nil {
+		return x.Sender
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetReceiver() string {
+	if x != nil {
+		return x.Receiver
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetMessageType() string {
+	if x != nil {
+		return x.MessageType
+	}
+	return ""
+}
+
+func (x *CUICMessageRequest) GetPriority() int32 {
+	if x != nil {
+		return x.Priority
+	}
+	return 0
+}
+
+func (x *CUICMessageRequest) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *CUICMessageRequest) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *CUICMessageRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *CUICMessageRequest) GetCongestionHint() string {
+	if x != nil {
+		return x.CongestionHint
+	}
+	return ""
+}
+
+type CUICMessageResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamId       string                 `protobuf:"bytes,1,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
+	MessageId      string                 `protobuf:"bytes,2,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	InReplyTo      string                 `protobuf:"bytes,3,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
+	Version        string                 `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Sender         string                 `protobuf:"bytes,5,opt,name=sender,proto3" json:"sender,omitempty"`
+	Receiver       string                 `protobuf:"bytes,6,opt,name=receiver,proto3" json:"receiver,omitempty"`
+	Status         *CUICStatus            `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Payload        []byte                 `protobuf:"bytes,8,opt,name=payload,proto3" json:"payload,omitempty"` // JSON-encoded payload
+	Timestamp      int64                  `protobuf:"varint,9,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Metadata       map[string]string      `protobuf:"bytes,10,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	CongestionHint string                 `protobuf:"bytes,11,opt,name=congestion_hint,json=congestionHint,proto3" json:"congestion_hint,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CUICMessageResponse) Reset() {
+	*x = CUICMessageResponse{}
+	mi := &file_proto_gpuproxy_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CUICMessageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CUICMessageResponse) ProtoMessage() {}
+
+func (x *CUICMessageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_gpuproxy_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CUICMessageResponse.ProtoReflect.Descriptor instead.
+func (*CUICMessageResponse) Descriptor() ([]byte, []int) {
+	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *CUICMessageResponse) GetStreamId() string {
+	if x != nil {
+		return x.StreamId
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetInReplyTo() string {
+	if x != nil {
+		return x.InReplyTo
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetSender() string {
+	if x != nil {
+		return x.Sender
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetReceiver() string {
+	if x != nil {
+		return x.Receiver
+	}
+	return ""
+}
+
+func (x *CUICMessageResponse) GetStatus() *CUICStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *CUICMessageResponse) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *CUICMessageResponse) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
+func (x *CUICMessageResponse) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *CUICMessageResponse) GetCongestionHint() string {
+	if x != nil {
+		return x.CongestionHint
+	}
+	return ""
+}
+
+type CUICStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          int32                  `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Success       bool                   `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
+	Retriable     bool                   `protobuf:"varint,4,opt,name=retriable,proto3" json:"retriable,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CUICStatus) Reset() {
+	*x = CUICStatus{}
+	mi := &file_proto_gpuproxy_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CUICStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CUICStatus) ProtoMessage() {}
+
+func (x *CUICStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_gpuproxy_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CUICStatus.ProtoReflect.Descriptor instead.
+func (*CUICStatus) Descriptor() ([]byte, []int) {
+	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *CUICStatus) GetCode() int32 {
+	if x != nil {
+		return x.Code
+	}
+	return 0
+}
+
+func (x *CUICStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CUICStatus) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CUICStatus) GetRetriable() bool {
+	if x != nil {
+		return x.Retriable
+	}
+	return false
+}
+
 // Health Check Messages
 type HealthCheckRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1996,7 +2313,7 @@ type HealthCheckRequest struct {
 
 func (x *HealthCheckRequest) Reset() {
 	*x = HealthCheckRequest{}
-	mi := &file_proto_gpuproxy_proto_msgTypes[32]
+	mi := &file_proto_gpuproxy_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2008,7 +2325,7 @@ func (x *HealthCheckRequest) String() string {
 func (*HealthCheckRequest) ProtoMessage() {}
 
 func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gpuproxy_proto_msgTypes[32]
+	mi := &file_proto_gpuproxy_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2021,7 +2338,7 @@ func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
 func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{32}
+	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{35}
 }
 
 type HealthCheckResponse struct {
@@ -2035,7 +2352,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_proto_gpuproxy_proto_msgTypes[33]
+	mi := &file_proto_gpuproxy_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2047,7 +2364,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_gpuproxy_proto_msgTypes[33]
+	mi := &file_proto_gpuproxy_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2060,7 +2377,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{33}
+	return file_proto_gpuproxy_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *HealthCheckResponse) GetStatus() string {
@@ -2246,7 +2563,47 @@ const file_proto_gpuproxy_proto_rawDesc = "" +
 	"\x13ReserveGPUsResponse\x12D\n" +
 	"\x12reserved_instances\x18\x01 \x03(\v2\x15.gpuproxy.GPUInstanceR\x11reservedInstances\x12%\n" +
 	"\x0ereserved_count\x18\x02 \x01(\x05R\rreservedCount\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x14\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xc3\x03\n" +
+	"\x12CUICMessageRequest\x12\x1b\n" +
+	"\tstream_id\x18\x01 \x01(\tR\bstreamId\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x02 \x01(\tR\tmessageId\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x16\n" +
+	"\x06sender\x18\x04 \x01(\tR\x06sender\x12\x1a\n" +
+	"\breceiver\x18\x05 \x01(\tR\breceiver\x12!\n" +
+	"\fmessage_type\x18\x06 \x01(\tR\vmessageType\x12\x1a\n" +
+	"\bpriority\x18\a \x01(\x05R\bpriority\x12\x1c\n" +
+	"\ttimestamp\x18\b \x01(\x03R\ttimestamp\x12\x18\n" +
+	"\apayload\x18\t \x01(\fR\apayload\x12F\n" +
+	"\bmetadata\x18\n" +
+	" \x03(\v2*.gpuproxy.CUICMessageRequest.MetadataEntryR\bmetadata\x12'\n" +
+	"\x0fcongestion_hint\x18\v \x01(\tR\x0econgestionHint\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd4\x03\n" +
+	"\x13CUICMessageResponse\x12\x1b\n" +
+	"\tstream_id\x18\x01 \x01(\tR\bstreamId\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x02 \x01(\tR\tmessageId\x12\x1e\n" +
+	"\vin_reply_to\x18\x03 \x01(\tR\tinReplyTo\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x16\n" +
+	"\x06sender\x18\x05 \x01(\tR\x06sender\x12\x1a\n" +
+	"\breceiver\x18\x06 \x01(\tR\breceiver\x12,\n" +
+	"\x06status\x18\a \x01(\v2\x14.gpuproxy.CUICStatusR\x06status\x12\x18\n" +
+	"\apayload\x18\b \x01(\fR\apayload\x12\x1c\n" +
+	"\ttimestamp\x18\t \x01(\x03R\ttimestamp\x12G\n" +
+	"\bmetadata\x18\n" +
+	" \x03(\v2+.gpuproxy.CUICMessageResponse.MetadataEntryR\bmetadata\x12'\n" +
+	"\x0fcongestion_hint\x18\v \x01(\tR\x0econgestionHint\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"r\n" +
+	"\n" +
+	"CUICStatus\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\x05R\x04code\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x18\n" +
+	"\asuccess\x18\x03 \x01(\bR\asuccess\x12\x1c\n" +
+	"\tretriable\x18\x04 \x01(\bR\tretriable\"\x14\n" +
 	"\x12HealthCheckRequest\"\xcd\x01\n" +
 	"\x13HealthCheckResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1c\n" +
@@ -2254,8 +2611,7 @@ const file_proto_gpuproxy_proto_rawDesc = "" +
 	"\adetails\x18\x03 \x03(\v2*.gpuproxy.HealthCheckResponse.DetailsEntryR\adetails\x1a:\n" +
 	"\fDetailsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xda\n" +
-	"\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x80\f\n" +
 	"\x0fGPUProxyService\x128\n" +
 	"\x05Login\x12\x16.gpuproxy.LoginRequest\x1a\x17.gpuproxy.LoginResponse\x12M\n" +
 	"\fCreateAPIKey\x12\x1d.gpuproxy.CreateAPIKeyRequest\x1a\x1e.gpuproxy.CreateAPIKeyResponse\x12Y\n" +
@@ -2271,7 +2627,9 @@ const file_proto_gpuproxy_proto_rawDesc = "" +
 	"\x12CheckSpendingLimit\x12#.gpuproxy.CheckSpendingLimitRequest\x1a$.gpuproxy.CheckSpendingLimitResponse\x12n\n" +
 	"\x17SetLoadBalancerStrategy\x12(.gpuproxy.SetLoadBalancerStrategyRequest\x1a).gpuproxy.SetLoadBalancerStrategyResponse\x12J\n" +
 	"\vGetLoadInfo\x12\x1c.gpuproxy.GetLoadInfoRequest\x1a\x1d.gpuproxy.GetLoadInfoResponse\x12J\n" +
-	"\vReserveGPUs\x12\x1c.gpuproxy.ReserveGPUsRequest\x1a\x1d.gpuproxy.ReserveGPUsResponse\x12J\n" +
+	"\vReserveGPUs\x12\x1c.gpuproxy.ReserveGPUsRequest\x1a\x1d.gpuproxy.ReserveGPUsResponse\x12N\n" +
+	"\x0fSendCUICMessage\x12\x1c.gpuproxy.CUICMessageRequest\x1a\x1d.gpuproxy.CUICMessageResponse\x12T\n" +
+	"\x11StreamCUICMessage\x12\x1c.gpuproxy.CUICMessageRequest\x1a\x1d.gpuproxy.CUICMessageResponse(\x010\x01\x12J\n" +
 	"\vHealthCheck\x12\x1c.gpuproxy.HealthCheckRequest\x1a\x1d.gpuproxy.HealthCheckResponseB)Z'github.com/aiserve/gpuproxy/pkg/grpc/pbb\x06proto3"
 
 var (
@@ -2286,7 +2644,7 @@ func file_proto_gpuproxy_proto_rawDescGZIP() []byte {
 	return file_proto_gpuproxy_proto_rawDescData
 }
 
-var file_proto_gpuproxy_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_proto_gpuproxy_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_proto_gpuproxy_proto_goTypes = []any{
 	(*LoginRequest)(nil),                    // 0: gpuproxy.LoginRequest
 	(*LoginResponse)(nil),                   // 1: gpuproxy.LoginResponse
@@ -2320,65 +2678,77 @@ var file_proto_gpuproxy_proto_goTypes = []any{
 	(*GetLoadInfoResponse)(nil),             // 29: gpuproxy.GetLoadInfoResponse
 	(*ReserveGPUsRequest)(nil),              // 30: gpuproxy.ReserveGPUsRequest
 	(*ReserveGPUsResponse)(nil),             // 31: gpuproxy.ReserveGPUsResponse
-	(*HealthCheckRequest)(nil),              // 32: gpuproxy.HealthCheckRequest
-	(*HealthCheckResponse)(nil),             // 33: gpuproxy.HealthCheckResponse
-	nil,                                     // 34: gpuproxy.GPUInstance.MetadataEntry
-	nil,                                     // 35: gpuproxy.CreateGPUInstanceRequest.EnvEntry
-	nil,                                     // 36: gpuproxy.ProxyRequestMessage.HeadersEntry
-	nil,                                     // 37: gpuproxy.ProxyResponse.HeadersEntry
-	nil,                                     // 38: gpuproxy.HealthCheckResponse.DetailsEntry
+	(*CUICMessageRequest)(nil),              // 32: gpuproxy.CUICMessageRequest
+	(*CUICMessageResponse)(nil),             // 33: gpuproxy.CUICMessageResponse
+	(*CUICStatus)(nil),                      // 34: gpuproxy.CUICStatus
+	(*HealthCheckRequest)(nil),              // 35: gpuproxy.HealthCheckRequest
+	(*HealthCheckResponse)(nil),             // 36: gpuproxy.HealthCheckResponse
+	nil,                                     // 37: gpuproxy.GPUInstance.MetadataEntry
+	nil,                                     // 38: gpuproxy.CreateGPUInstanceRequest.EnvEntry
+	nil,                                     // 39: gpuproxy.ProxyRequestMessage.HeadersEntry
+	nil,                                     // 40: gpuproxy.ProxyResponse.HeadersEntry
+	nil,                                     // 41: gpuproxy.CUICMessageRequest.MetadataEntry
+	nil,                                     // 42: gpuproxy.CUICMessageResponse.MetadataEntry
+	nil,                                     // 43: gpuproxy.HealthCheckResponse.DetailsEntry
 }
 var file_proto_gpuproxy_proto_depIdxs = []int32{
-	34, // 0: gpuproxy.GPUInstance.metadata:type_name -> gpuproxy.GPUInstance.MetadataEntry
+	37, // 0: gpuproxy.GPUInstance.metadata:type_name -> gpuproxy.GPUInstance.MetadataEntry
 	5,  // 1: gpuproxy.ListGPUInstancesResponse.instances:type_name -> gpuproxy.GPUInstance
-	35, // 2: gpuproxy.CreateGPUInstanceRequest.env:type_name -> gpuproxy.CreateGPUInstanceRequest.EnvEntry
+	38, // 2: gpuproxy.CreateGPUInstanceRequest.env:type_name -> gpuproxy.CreateGPUInstanceRequest.EnvEntry
 	5,  // 3: gpuproxy.GetGPUInstanceResponse.instance:type_name -> gpuproxy.GPUInstance
-	36, // 4: gpuproxy.ProxyRequestMessage.headers:type_name -> gpuproxy.ProxyRequestMessage.HeadersEntry
-	37, // 5: gpuproxy.ProxyResponse.headers:type_name -> gpuproxy.ProxyResponse.HeadersEntry
+	39, // 4: gpuproxy.ProxyRequestMessage.headers:type_name -> gpuproxy.ProxyRequestMessage.HeadersEntry
+	40, // 5: gpuproxy.ProxyResponse.headers:type_name -> gpuproxy.ProxyResponse.HeadersEntry
 	18, // 6: gpuproxy.GetTransactionsResponse.transactions:type_name -> gpuproxy.Transaction
 	21, // 7: gpuproxy.GetSpendingInfoResponse.windows:type_name -> gpuproxy.SpendingWindow
 	21, // 8: gpuproxy.CheckSpendingLimitResponse.would_exceed:type_name -> gpuproxy.SpendingWindow
 	28, // 9: gpuproxy.GetLoadInfoResponse.server_load:type_name -> gpuproxy.LoadInfo
 	28, // 10: gpuproxy.GetLoadInfoResponse.provider_load:type_name -> gpuproxy.LoadInfo
 	5,  // 11: gpuproxy.ReserveGPUsResponse.reserved_instances:type_name -> gpuproxy.GPUInstance
-	38, // 12: gpuproxy.HealthCheckResponse.details:type_name -> gpuproxy.HealthCheckResponse.DetailsEntry
-	0,  // 13: gpuproxy.GPUProxyService.Login:input_type -> gpuproxy.LoginRequest
-	2,  // 14: gpuproxy.GPUProxyService.CreateAPIKey:input_type -> gpuproxy.CreateAPIKeyRequest
-	4,  // 15: gpuproxy.GPUProxyService.ListGPUInstances:input_type -> gpuproxy.ListGPUInstancesRequest
-	7,  // 16: gpuproxy.GPUProxyService.CreateGPUInstance:input_type -> gpuproxy.CreateGPUInstanceRequest
-	9,  // 17: gpuproxy.GPUProxyService.DestroyGPUInstance:input_type -> gpuproxy.DestroyGPUInstanceRequest
-	11, // 18: gpuproxy.GPUProxyService.GetGPUInstance:input_type -> gpuproxy.GetGPUInstanceRequest
-	13, // 19: gpuproxy.GPUProxyService.ProxyRequest:input_type -> gpuproxy.ProxyRequestMessage
-	13, // 20: gpuproxy.GPUProxyService.StreamProxyRequest:input_type -> gpuproxy.ProxyRequestMessage
-	15, // 21: gpuproxy.GPUProxyService.CreatePayment:input_type -> gpuproxy.CreatePaymentRequest
-	17, // 22: gpuproxy.GPUProxyService.GetTransactions:input_type -> gpuproxy.GetTransactionsRequest
-	20, // 23: gpuproxy.GPUProxyService.GetSpendingInfo:input_type -> gpuproxy.GetSpendingInfoRequest
-	23, // 24: gpuproxy.GPUProxyService.CheckSpendingLimit:input_type -> gpuproxy.CheckSpendingLimitRequest
-	25, // 25: gpuproxy.GPUProxyService.SetLoadBalancerStrategy:input_type -> gpuproxy.SetLoadBalancerStrategyRequest
-	27, // 26: gpuproxy.GPUProxyService.GetLoadInfo:input_type -> gpuproxy.GetLoadInfoRequest
-	30, // 27: gpuproxy.GPUProxyService.ReserveGPUs:input_type -> gpuproxy.ReserveGPUsRequest
-	32, // 28: gpuproxy.GPUProxyService.HealthCheck:input_type -> gpuproxy.HealthCheckRequest
-	1,  // 29: gpuproxy.GPUProxyService.Login:output_type -> gpuproxy.LoginResponse
-	3,  // 30: gpuproxy.GPUProxyService.CreateAPIKey:output_type -> gpuproxy.CreateAPIKeyResponse
-	6,  // 31: gpuproxy.GPUProxyService.ListGPUInstances:output_type -> gpuproxy.ListGPUInstancesResponse
-	8,  // 32: gpuproxy.GPUProxyService.CreateGPUInstance:output_type -> gpuproxy.CreateGPUInstanceResponse
-	10, // 33: gpuproxy.GPUProxyService.DestroyGPUInstance:output_type -> gpuproxy.DestroyGPUInstanceResponse
-	12, // 34: gpuproxy.GPUProxyService.GetGPUInstance:output_type -> gpuproxy.GetGPUInstanceResponse
-	14, // 35: gpuproxy.GPUProxyService.ProxyRequest:output_type -> gpuproxy.ProxyResponse
-	14, // 36: gpuproxy.GPUProxyService.StreamProxyRequest:output_type -> gpuproxy.ProxyResponse
-	16, // 37: gpuproxy.GPUProxyService.CreatePayment:output_type -> gpuproxy.CreatePaymentResponse
-	19, // 38: gpuproxy.GPUProxyService.GetTransactions:output_type -> gpuproxy.GetTransactionsResponse
-	22, // 39: gpuproxy.GPUProxyService.GetSpendingInfo:output_type -> gpuproxy.GetSpendingInfoResponse
-	24, // 40: gpuproxy.GPUProxyService.CheckSpendingLimit:output_type -> gpuproxy.CheckSpendingLimitResponse
-	26, // 41: gpuproxy.GPUProxyService.SetLoadBalancerStrategy:output_type -> gpuproxy.SetLoadBalancerStrategyResponse
-	29, // 42: gpuproxy.GPUProxyService.GetLoadInfo:output_type -> gpuproxy.GetLoadInfoResponse
-	31, // 43: gpuproxy.GPUProxyService.ReserveGPUs:output_type -> gpuproxy.ReserveGPUsResponse
-	33, // 44: gpuproxy.GPUProxyService.HealthCheck:output_type -> gpuproxy.HealthCheckResponse
-	29, // [29:45] is the sub-list for method output_type
-	13, // [13:29] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	41, // 12: gpuproxy.CUICMessageRequest.metadata:type_name -> gpuproxy.CUICMessageRequest.MetadataEntry
+	34, // 13: gpuproxy.CUICMessageResponse.status:type_name -> gpuproxy.CUICStatus
+	42, // 14: gpuproxy.CUICMessageResponse.metadata:type_name -> gpuproxy.CUICMessageResponse.MetadataEntry
+	43, // 15: gpuproxy.HealthCheckResponse.details:type_name -> gpuproxy.HealthCheckResponse.DetailsEntry
+	0,  // 16: gpuproxy.GPUProxyService.Login:input_type -> gpuproxy.LoginRequest
+	2,  // 17: gpuproxy.GPUProxyService.CreateAPIKey:input_type -> gpuproxy.CreateAPIKeyRequest
+	4,  // 18: gpuproxy.GPUProxyService.ListGPUInstances:input_type -> gpuproxy.ListGPUInstancesRequest
+	7,  // 19: gpuproxy.GPUProxyService.CreateGPUInstance:input_type -> gpuproxy.CreateGPUInstanceRequest
+	9,  // 20: gpuproxy.GPUProxyService.DestroyGPUInstance:input_type -> gpuproxy.DestroyGPUInstanceRequest
+	11, // 21: gpuproxy.GPUProxyService.GetGPUInstance:input_type -> gpuproxy.GetGPUInstanceRequest
+	13, // 22: gpuproxy.GPUProxyService.ProxyRequest:input_type -> gpuproxy.ProxyRequestMessage
+	13, // 23: gpuproxy.GPUProxyService.StreamProxyRequest:input_type -> gpuproxy.ProxyRequestMessage
+	15, // 24: gpuproxy.GPUProxyService.CreatePayment:input_type -> gpuproxy.CreatePaymentRequest
+	17, // 25: gpuproxy.GPUProxyService.GetTransactions:input_type -> gpuproxy.GetTransactionsRequest
+	20, // 26: gpuproxy.GPUProxyService.GetSpendingInfo:input_type -> gpuproxy.GetSpendingInfoRequest
+	23, // 27: gpuproxy.GPUProxyService.CheckSpendingLimit:input_type -> gpuproxy.CheckSpendingLimitRequest
+	25, // 28: gpuproxy.GPUProxyService.SetLoadBalancerStrategy:input_type -> gpuproxy.SetLoadBalancerStrategyRequest
+	27, // 29: gpuproxy.GPUProxyService.GetLoadInfo:input_type -> gpuproxy.GetLoadInfoRequest
+	30, // 30: gpuproxy.GPUProxyService.ReserveGPUs:input_type -> gpuproxy.ReserveGPUsRequest
+	32, // 31: gpuproxy.GPUProxyService.SendCUICMessage:input_type -> gpuproxy.CUICMessageRequest
+	32, // 32: gpuproxy.GPUProxyService.StreamCUICMessage:input_type -> gpuproxy.CUICMessageRequest
+	35, // 33: gpuproxy.GPUProxyService.HealthCheck:input_type -> gpuproxy.HealthCheckRequest
+	1,  // 34: gpuproxy.GPUProxyService.Login:output_type -> gpuproxy.LoginResponse
+	3,  // 35: gpuproxy.GPUProxyService.CreateAPIKey:output_type -> gpuproxy.CreateAPIKeyResponse
+	6,  // 36: gpuproxy.GPUProxyService.ListGPUInstances:output_type -> gpuproxy.ListGPUInstancesResponse
+	8,  // 37: gpuproxy.GPUProxyService.CreateGPUInstance:output_type -> gpuproxy.CreateGPUInstanceResponse
+	10, // 38: gpuproxy.GPUProxyService.DestroyGPUInstance:output_type -> gpuproxy.DestroyGPUInstanceResponse
+	12, // 39: gpuproxy.GPUProxyService.GetGPUInstance:output_type -> gpuproxy.GetGPUInstanceResponse
+	14, // 40: gpuproxy.GPUProxyService.ProxyRequest:output_type -> gpuproxy.ProxyResponse
+	14, // 41: gpuproxy.GPUProxyService.StreamProxyRequest:output_type -> gpuproxy.ProxyResponse
+	16, // 42: gpuproxy.GPUProxyService.CreatePayment:output_type -> gpuproxy.CreatePaymentResponse
+	19, // 43: gpuproxy.GPUProxyService.GetTransactions:output_type -> gpuproxy.GetTransactionsResponse
+	22, // 44: gpuproxy.GPUProxyService.GetSpendingInfo:output_type -> gpuproxy.GetSpendingInfoResponse
+	24, // 45: gpuproxy.GPUProxyService.CheckSpendingLimit:output_type -> gpuproxy.CheckSpendingLimitResponse
+	26, // 46: gpuproxy.GPUProxyService.SetLoadBalancerStrategy:output_type -> gpuproxy.SetLoadBalancerStrategyResponse
+	29, // 47: gpuproxy.GPUProxyService.GetLoadInfo:output_type -> gpuproxy.GetLoadInfoResponse
+	31, // 48: gpuproxy.GPUProxyService.ReserveGPUs:output_type -> gpuproxy.ReserveGPUsResponse
+	33, // 49: gpuproxy.GPUProxyService.SendCUICMessage:output_type -> gpuproxy.CUICMessageResponse
+	33, // 50: gpuproxy.GPUProxyService.StreamCUICMessage:output_type -> gpuproxy.CUICMessageResponse
+	36, // 51: gpuproxy.GPUProxyService.HealthCheck:output_type -> gpuproxy.HealthCheckResponse
+	34, // [34:52] is the sub-list for method output_type
+	16, // [16:34] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_proto_gpuproxy_proto_init() }
@@ -2392,7 +2762,7 @@ func file_proto_gpuproxy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_gpuproxy_proto_rawDesc), len(file_proto_gpuproxy_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

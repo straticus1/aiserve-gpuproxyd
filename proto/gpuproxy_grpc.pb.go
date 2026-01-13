@@ -34,6 +34,8 @@ const (
 	GPUProxyService_SetLoadBalancerStrategy_FullMethodName = "/gpuproxy.GPUProxyService/SetLoadBalancerStrategy"
 	GPUProxyService_GetLoadInfo_FullMethodName             = "/gpuproxy.GPUProxyService/GetLoadInfo"
 	GPUProxyService_ReserveGPUs_FullMethodName             = "/gpuproxy.GPUProxyService/ReserveGPUs"
+	GPUProxyService_SendCUICMessage_FullMethodName         = "/gpuproxy.GPUProxyService/SendCUICMessage"
+	GPUProxyService_StreamCUICMessage_FullMethodName       = "/gpuproxy.GPUProxyService/StreamCUICMessage"
 	GPUProxyService_HealthCheck_FullMethodName             = "/gpuproxy.GPUProxyService/HealthCheck"
 )
 
@@ -64,6 +66,9 @@ type GPUProxyServiceClient interface {
 	SetLoadBalancerStrategy(ctx context.Context, in *SetLoadBalancerStrategyRequest, opts ...grpc.CallOption) (*SetLoadBalancerStrategyResponse, error)
 	GetLoadInfo(ctx context.Context, in *GetLoadInfoRequest, opts ...grpc.CallOption) (*GetLoadInfoResponse, error)
 	ReserveGPUs(ctx context.Context, in *ReserveGPUsRequest, opts ...grpc.CallOption) (*ReserveGPUsResponse, error)
+	// CUIC Protocol
+	SendCUICMessage(ctx context.Context, in *CUICMessageRequest, opts ...grpc.CallOption) (*CUICMessageResponse, error)
+	StreamCUICMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[CUICMessageRequest, CUICMessageResponse], error)
 	// Health
 	HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error)
 }
@@ -229,6 +234,29 @@ func (c *gPUProxyServiceClient) ReserveGPUs(ctx context.Context, in *ReserveGPUs
 	return out, nil
 }
 
+func (c *gPUProxyServiceClient) SendCUICMessage(ctx context.Context, in *CUICMessageRequest, opts ...grpc.CallOption) (*CUICMessageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CUICMessageResponse)
+	err := c.cc.Invoke(ctx, GPUProxyService_SendCUICMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *gPUProxyServiceClient) StreamCUICMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[CUICMessageRequest, CUICMessageResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &GPUProxyService_ServiceDesc.Streams[1], GPUProxyService_StreamCUICMessage_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[CUICMessageRequest, CUICMessageResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type GPUProxyService_StreamCUICMessageClient = grpc.BidiStreamingClient[CUICMessageRequest, CUICMessageResponse]
+
 func (c *gPUProxyServiceClient) HealthCheck(ctx context.Context, in *HealthCheckRequest, opts ...grpc.CallOption) (*HealthCheckResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HealthCheckResponse)
@@ -266,6 +294,9 @@ type GPUProxyServiceServer interface {
 	SetLoadBalancerStrategy(context.Context, *SetLoadBalancerStrategyRequest) (*SetLoadBalancerStrategyResponse, error)
 	GetLoadInfo(context.Context, *GetLoadInfoRequest) (*GetLoadInfoResponse, error)
 	ReserveGPUs(context.Context, *ReserveGPUsRequest) (*ReserveGPUsResponse, error)
+	// CUIC Protocol
+	SendCUICMessage(context.Context, *CUICMessageRequest) (*CUICMessageResponse, error)
+	StreamCUICMessage(grpc.BidiStreamingServer[CUICMessageRequest, CUICMessageResponse]) error
 	// Health
 	HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error)
 	mustEmbedUnimplementedGPUProxyServiceServer()
@@ -322,6 +353,12 @@ func (UnimplementedGPUProxyServiceServer) GetLoadInfo(context.Context, *GetLoadI
 }
 func (UnimplementedGPUProxyServiceServer) ReserveGPUs(context.Context, *ReserveGPUsRequest) (*ReserveGPUsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReserveGPUs not implemented")
+}
+func (UnimplementedGPUProxyServiceServer) SendCUICMessage(context.Context, *CUICMessageRequest) (*CUICMessageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SendCUICMessage not implemented")
+}
+func (UnimplementedGPUProxyServiceServer) StreamCUICMessage(grpc.BidiStreamingServer[CUICMessageRequest, CUICMessageResponse]) error {
+	return status.Error(codes.Unimplemented, "method StreamCUICMessage not implemented")
 }
 func (UnimplementedGPUProxyServiceServer) HealthCheck(context.Context, *HealthCheckRequest) (*HealthCheckResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method HealthCheck not implemented")
@@ -606,6 +643,31 @@ func _GPUProxyService_ReserveGPUs_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GPUProxyService_SendCUICMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CUICMessageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GPUProxyServiceServer).SendCUICMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GPUProxyService_SendCUICMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GPUProxyServiceServer).SendCUICMessage(ctx, req.(*CUICMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GPUProxyService_StreamCUICMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GPUProxyServiceServer).StreamCUICMessage(&grpc.GenericServerStream[CUICMessageRequest, CUICMessageResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type GPUProxyService_StreamCUICMessageServer = grpc.BidiStreamingServer[CUICMessageRequest, CUICMessageResponse]
+
 func _GPUProxyService_HealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(HealthCheckRequest)
 	if err := dec(in); err != nil {
@@ -688,6 +750,10 @@ var GPUProxyService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _GPUProxyService_ReserveGPUs_Handler,
 		},
 		{
+			MethodName: "SendCUICMessage",
+			Handler:    _GPUProxyService_SendCUICMessage_Handler,
+		},
+		{
 			MethodName: "HealthCheck",
 			Handler:    _GPUProxyService_HealthCheck_Handler,
 		},
@@ -696,6 +762,12 @@ var GPUProxyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StreamProxyRequest",
 			Handler:       _GPUProxyService_StreamProxyRequest_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "StreamCUICMessage",
+			Handler:       _GPUProxyService_StreamCUICMessage_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

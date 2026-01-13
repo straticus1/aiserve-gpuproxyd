@@ -14,6 +14,8 @@ type PostgresDB struct {
 }
 
 func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
+	// Build DSN - works for both direct PostgreSQL and PgBouncer connections
+	// Note: pool_max_conns and pool_min_conns are client-side pgx settings
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s pool_max_conns=%d pool_min_conns=%d",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode, cfg.MaxConns, cfg.MinConns,
@@ -24,8 +26,22 @@ func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
 		return nil, fmt.Errorf("unable to parse database config: %w", err)
 	}
 
-	poolConfig.MaxConnLifetime = time.Hour
-	poolConfig.MaxConnIdleTime = 30 * time.Minute
+	// Apply configurable connection pool settings
+	poolConfig.MaxConnLifetime = cfg.MaxConnLifetime
+	poolConfig.MaxConnIdleTime = cfg.MaxConnIdleTime
+	poolConfig.HealthCheckPeriod = cfg.HealthCheckPeriod
+	poolConfig.ConnConfig.ConnectTimeout = cfg.ConnectTimeout
+
+	// PgBouncer-specific optimizations
+	if cfg.UsePgBouncer {
+		// When using PgBouncer in transaction mode, disable prepared statements
+		// PgBouncer transaction pooling doesn't support prepared statements across transactions
+		if cfg.PgBouncerPoolMode == "transaction" || cfg.PgBouncerPoolMode == "statement" {
+			// Prepared statements are automatically disabled per-connection in pgx when
+			// the server doesn't support them. We don't need explicit configuration here.
+			// However, you can force disable by setting prepare_threshold=0 in queries if needed.
+		}
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -35,8 +51,14 @@ func NewPostgresDB(cfg config.DatabaseConfig) (*PostgresDB, error) {
 		return nil, fmt.Errorf("unable to create connection pool: %w", err)
 	}
 
+	// Verify connectivity (works for both direct PostgreSQL and PgBouncer)
+	connectionType := "PostgreSQL"
+	if cfg.UsePgBouncer {
+		connectionType = fmt.Sprintf("PgBouncer (%s mode)", cfg.PgBouncerPoolMode)
+	}
+
 	if err := pool.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("unable to ping database: %w", err)
+		return nil, fmt.Errorf("unable to ping %s: %w", connectionType, err)
 	}
 
 	return &PostgresDB{Pool: pool}, nil

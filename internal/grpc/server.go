@@ -5,14 +5,17 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
 
 	"github.com/aiserve/gpuproxy/internal/auth"
 	"github.com/aiserve/gpuproxy/internal/billing"
+	"github.com/aiserve/gpuproxy/internal/cuic"
 	"github.com/aiserve/gpuproxy/internal/gpu"
 	"github.com/aiserve/gpuproxy/internal/loadbalancer"
+	"github.com/aiserve/gpuproxy/internal/middleware"
 	"github.com/aiserve/gpuproxy/internal/models"
 	pb "github.com/aiserve/gpuproxy/proto"
 	"github.com/google/uuid"
@@ -31,6 +34,7 @@ type Server struct {
 	protocolHandler *gpu.ProtocolHandler
 	billingService  *billing.Service
 	lbService       *loadbalancer.LoadBalancerService
+	cuicServer      *cuic.CUICServer
 	grpcServer      *grpc.Server
 }
 
@@ -41,6 +45,7 @@ func NewServer(
 	protocolHandler *gpu.ProtocolHandler,
 	billingService *billing.Service,
 	lbService *loadbalancer.LoadBalancerService,
+	cuicServer *cuic.CUICServer,
 ) *Server {
 	return &Server{
 		authService:     authService,
@@ -48,6 +53,7 @@ func NewServer(
 		protocolHandler: protocolHandler,
 		billingService:  billingService,
 		lbService:       lbService,
+		cuicServer:      cuicServer,
 	}
 }
 
@@ -639,6 +645,185 @@ func (s *Server) ReserveGPUs(ctx context.Context, req *pb.ReserveGPUsRequest) (*
 		ReservedCount:     int32(len(reserved)),
 		Message:           message,
 	}, nil
+}
+
+// SendCUICMessage handles CUIC protocol messages
+func (s *Server) SendCUICMessage(ctx context.Context, req *pb.CUICMessageRequest) (*pb.CUICMessageResponse, error) {
+	userID, err := getUserID(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, err.Error())
+	}
+
+	// Add user ID to context for CUIC server (using the same pattern as GetUserID expects)
+	user := &models.User{ID: userID}
+	ctx = context.WithValue(ctx, middleware.UserContextKey, user)
+
+	// Convert protobuf to JSON for CUIC server
+	msgJSON, err := json.Marshal(map[string]interface{}{
+		"stream_id":       req.StreamId,
+		"message_id":      req.MessageId,
+		"version":         req.Version,
+		"sender":          req.Sender,
+		"receiver":        req.Receiver,
+		"message_type":    req.MessageType,
+		"priority":        req.Priority,
+		"timestamp":       time.Unix(req.Timestamp, 0),
+		"payload":         json.RawMessage(req.Payload),
+		"metadata":        req.Metadata,
+		"congestion_hint": req.CongestionHint,
+	})
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "failed to marshal message: %v", err)
+	}
+
+	// Handle message through CUIC server
+	respJSON, err := s.cuicServer.HandleMessage(ctx, msgJSON)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "CUIC server error: %v", err)
+	}
+
+	// Parse response
+	var cuicResp map[string]interface{}
+	if err := json.Unmarshal(respJSON, &cuicResp); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to parse response: %v", err)
+	}
+
+	// Convert to protobuf response
+	statusData, _ := cuicResp["status"].(map[string]interface{})
+	payloadBytes, _ := json.Marshal(cuicResp["payload"])
+
+	return &pb.CUICMessageResponse{
+		StreamId:  getString(cuicResp, "stream_id"),
+		MessageId: getString(cuicResp, "message_id"),
+		InReplyTo: getString(cuicResp, "in_reply_to"),
+		Version:   getString(cuicResp, "version"),
+		Sender:    getString(cuicResp, "sender"),
+		Receiver:  getString(cuicResp, "receiver"),
+		Status: &pb.CUICStatus{
+			Code:      int32(getFloat(statusData, "code")),
+			Message:   getString(statusData, "message"),
+			Success:   getBool(statusData, "success"),
+			Retriable: getBool(statusData, "retriable"),
+		},
+		Payload:        payloadBytes,
+		Timestamp:      int64(getFloat(cuicResp, "timestamp")),
+		Metadata:       getStringMap(cuicResp, "metadata"),
+		CongestionHint: getString(cuicResp, "congestion_hint"),
+	}, nil
+}
+
+// StreamCUICMessage handles bidirectional CUIC streaming
+func (s *Server) StreamCUICMessage(stream pb.GPUProxyService_StreamCUICMessageServer) error {
+	ctx := stream.Context()
+	userID, err := getUserID(ctx)
+	if err != nil {
+		return status.Errorf(codes.Unauthenticated, err.Error())
+	}
+
+	// Add user ID to context (using the same pattern as GetUserID expects)
+	user := &models.User{ID: userID}
+	ctx = context.WithValue(ctx, middleware.UserContextKey, user)
+
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return status.Errorf(codes.Internal, "stream receive error: %v", err)
+		}
+
+		// Convert protobuf to JSON
+		msgJSON, err := json.Marshal(map[string]interface{}{
+			"stream_id":       req.StreamId,
+			"message_id":      req.MessageId,
+			"version":         req.Version,
+			"sender":          req.Sender,
+			"receiver":        req.Receiver,
+			"message_type":    req.MessageType,
+			"priority":        req.Priority,
+			"timestamp":       time.Unix(req.Timestamp, 0),
+			"payload":         json.RawMessage(req.Payload),
+			"metadata":        req.Metadata,
+			"congestion_hint": req.CongestionHint,
+		})
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "failed to marshal message: %v", err)
+		}
+
+		// Handle message
+		respJSON, err := s.cuicServer.HandleMessage(ctx, msgJSON)
+		if err != nil {
+			return status.Errorf(codes.Internal, "CUIC server error: %v", err)
+		}
+
+		// Parse response
+		var cuicResp map[string]interface{}
+		if err := json.Unmarshal(respJSON, &cuicResp); err != nil {
+			return status.Errorf(codes.Internal, "failed to parse response: %v", err)
+		}
+
+		// Convert to protobuf and send
+		statusData, _ := cuicResp["status"].(map[string]interface{})
+		payloadBytes, _ := json.Marshal(cuicResp["payload"])
+
+		resp := &pb.CUICMessageResponse{
+			StreamId:  getString(cuicResp, "stream_id"),
+			MessageId: getString(cuicResp, "message_id"),
+			InReplyTo: getString(cuicResp, "in_reply_to"),
+			Version:   getString(cuicResp, "version"),
+			Sender:    getString(cuicResp, "sender"),
+			Receiver:  getString(cuicResp, "receiver"),
+			Status: &pb.CUICStatus{
+				Code:      int32(getFloat(statusData, "code")),
+				Message:   getString(statusData, "message"),
+				Success:   getBool(statusData, "success"),
+				Retriable: getBool(statusData, "retriable"),
+			},
+			Payload:        payloadBytes,
+			Timestamp:      int64(getFloat(cuicResp, "timestamp")),
+			Metadata:       getStringMap(cuicResp, "metadata"),
+			CongestionHint: getString(cuicResp, "congestion_hint"),
+		}
+
+		if err := stream.Send(resp); err != nil {
+			return status.Errorf(codes.Internal, "stream send error: %v", err)
+		}
+	}
+}
+
+// Helper functions for type conversion
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getFloat(m map[string]interface{}, key string) float64 {
+	if v, ok := m[key].(float64); ok {
+		return v
+	}
+	return 0
+}
+
+func getBool(m map[string]interface{}, key string) bool {
+	if v, ok := m[key].(bool); ok {
+		return v
+	}
+	return false
+}
+
+func getStringMap(m map[string]interface{}, key string) map[string]string {
+	result := make(map[string]string)
+	if v, ok := m[key].(map[string]interface{}); ok {
+		for k, val := range v {
+			if str, ok := val.(string); ok {
+				result[k] = str
+			}
+		}
+	}
+	return result
 }
 
 // HealthCheck performs a health check

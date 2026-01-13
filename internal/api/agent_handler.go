@@ -9,6 +9,7 @@ import (
 
 	"github.com/aiserve/gpuproxy/internal/a2a"
 	"github.com/aiserve/gpuproxy/internal/acp"
+	"github.com/aiserve/gpuproxy/internal/cuic"
 	"github.com/aiserve/gpuproxy/internal/fipa"
 	"github.com/aiserve/gpuproxy/internal/kqml"
 	"github.com/aiserve/gpuproxy/internal/langchain"
@@ -17,15 +18,17 @@ import (
 type AgentHandler struct {
 	a2aServer       *a2a.A2AServer
 	acpServer       *acp.ACPServer
+	cuicServer      *cuic.CUICServer
 	fipaServer      *fipa.FIPAServer
 	kqmlServer      *kqml.KQMLServer
 	langchainServer *langchain.LangChainServer
 }
 
-func NewAgentHandler(a2aServer *a2a.A2AServer, acpServer *acp.ACPServer, fipaServer *fipa.FIPAServer, kqmlServer *kqml.KQMLServer, langchainServer *langchain.LangChainServer) *AgentHandler {
+func NewAgentHandler(a2aServer *a2a.A2AServer, acpServer *acp.ACPServer, cuicServer *cuic.CUICServer, fipaServer *fipa.FIPAServer, kqmlServer *kqml.KQMLServer, langchainServer *langchain.LangChainServer) *AgentHandler {
 	return &AgentHandler{
 		a2aServer:       a2aServer,
 		acpServer:       acpServer,
+		cuicServer:      cuicServer,
 		fipaServer:      fipaServer,
 		kqmlServer:      kqmlServer,
 		langchainServer: langchainServer,
@@ -55,6 +58,40 @@ func (h *AgentHandler) HandleA2A(w http.ResponseWriter, r *http.Request) {
 	respBody, err := h.a2aServer.HandleRequest(r.Context(), body)
 	if err != nil {
 		log.Printf("A2A Error: %v", err)
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Internal server error",
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(respBody)
+}
+
+// HandleCUIC processes CUIC protocol messages
+func (h *AgentHandler) HandleCUIC(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		respondJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			"error": "Method not allowed",
+		})
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Failed to read request body",
+		})
+		return
+	}
+	defer r.Body.Close()
+
+	log.Printf("CUIC Message: %s", string(body))
+
+	respBody, err := h.cuicServer.HandleMessage(r.Context(), body)
+	if err != nil {
+		log.Printf("CUIC Error: %v", err)
 		respondJSON(w, http.StatusInternalServerError, map[string]string{
 			"error": "Internal server error",
 		})
@@ -252,6 +289,8 @@ func (h *AgentHandler) HandleUnifiedAgent(w http.ResponseWriter, r *http.Request
 		respBody, err = h.a2aServer.HandleRequest(r.Context(), body)
 	case "ACP":
 		respBody, err = h.acpServer.HandleMessage(r.Context(), body)
+	case "CUIC":
+		respBody, err = h.cuicServer.HandleMessage(r.Context(), body)
 	case "FIPA":
 		respBody, err = h.fipaServer.HandleMessage(r.Context(), body)
 	case "KQML":
@@ -302,6 +341,21 @@ func (h *AgentHandler) detectProtocol(body []byte) string {
 		if _, hasSender := header["sender"]; hasSender {
 			if _, hasMessageType := header["message_type"]; hasMessageType {
 				return "ACP"
+			}
+		}
+	}
+
+	// Check for CUIC (has stream_id and priority)
+	if _, hasStreamID := data["stream_id"]; hasStreamID {
+		if _, hasPriority := data["priority"]; hasPriority {
+			if msgType, ok := data["message_type"].(string); ok {
+				// CUIC has specific message types
+				cuicTypes := []string{"stream", "datagram", "request", "response", "control", "heartbeat"}
+				for _, ct := range cuicTypes {
+					if msgType == ct {
+						return "CUIC"
+					}
+				}
 			}
 		}
 	}

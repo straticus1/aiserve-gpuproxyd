@@ -41,23 +41,34 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Type     string
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-	MaxConns int
-	MinConns int
+	Type                string
+	Host                string
+	Port                int
+	User                string
+	Password            string
+	DBName              string
+	SSLMode             string
+	MaxConns            int
+	MinConns            int
+	MaxConnLifetime     time.Duration // How long a connection can be reused
+	MaxConnIdleTime     time.Duration // How long a connection can be idle
+	HealthCheckPeriod   time.Duration // How often to check connection health
+	ConnectTimeout      time.Duration // Timeout for establishing new connections
+	UsePgBouncer        bool          // Whether connecting through PgBouncer
+	PgBouncerPoolMode   string        // PgBouncer mode: "transaction", "session", or "statement"
 }
 
 type RedisConfig struct {
-	Host        string
-	Port        int
-	Password    string
-	DB          int
-	SessionMode SessionMode
+	Host         string
+	Port         int
+	Password     string
+	DB           int
+	SessionMode  SessionMode
+	PoolSize     int           // Maximum number of socket connections
+	MinIdleConns int           // Minimum number of idle connections
+	DialTimeout  time.Duration // Timeout for establishing new connections
+	ReadTimeout  time.Duration // Timeout for socket reads
+	WriteTimeout time.Duration // Timeout for socket writes
 }
 
 type AuthConfig struct {
@@ -133,22 +144,33 @@ func Load() (*Config, error) {
 			IdleTimeout:  getEnvAsDuration("IDLE_TIMEOUT", 60*time.Second),
 		},
 		Database: DatabaseConfig{
-			Type:     getEnv("DB_TYPE", "postgres"),
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnvAsInt("DB_PORT", 5432),
-			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", ""),
-			DBName:   getEnv("DB_NAME", "gpuproxy"),
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
-			MaxConns: getEnvAsInt("DB_MAX_CONNS", 25),
-			MinConns: getEnvAsInt("DB_MIN_CONNS", 5),
+			Type:              getEnv("DB_TYPE", "postgres"),
+			Host:              getEnv("DB_HOST", "localhost"),
+			Port:              getEnvAsInt("DB_PORT", 5432),
+			User:              getEnv("DB_USER", "postgres"),
+			Password:          getEnv("DB_PASSWORD", ""),
+			DBName:            getEnv("DB_NAME", "gpuproxy"),
+			SSLMode:           getEnv("DB_SSLMODE", "disable"),
+			MaxConns:          getEnvAsInt("DB_MAX_CONNS", 25),
+			MinConns:          getEnvAsInt("DB_MIN_CONNS", 5),
+			MaxConnLifetime:   getEnvAsDuration("DB_MAX_CONN_LIFETIME", 15*time.Minute),
+			MaxConnIdleTime:   getEnvAsDuration("DB_MAX_CONN_IDLE_TIME", 5*time.Minute),
+			HealthCheckPeriod: getEnvAsDuration("DB_HEALTH_CHECK_PERIOD", 1*time.Minute),
+			ConnectTimeout:    getEnvAsDuration("DB_CONNECT_TIMEOUT", 5*time.Second),
+			UsePgBouncer:      getEnvAsBool("DB_USE_PGBOUNCER", true),
+			PgBouncerPoolMode: getEnv("DB_PGBOUNCER_POOL_MODE", "transaction"),
 		},
 		Redis: RedisConfig{
-			Host:        getEnv("REDIS_HOST", "localhost"),
-			Port:        getEnvAsInt("REDIS_PORT", 6379),
-			Password:    getEnv("REDIS_PASSWORD", ""),
-			DB:          getEnvAsInt("REDIS_DB", 0),
-			SessionMode: SessionMode(getEnv("SESSION_MODE", string(SessionModeBalanced))),
+			Host:         getEnv("REDIS_HOST", "localhost"),
+			Port:         getEnvAsInt("REDIS_PORT", 6379),
+			Password:     getEnv("REDIS_PASSWORD", ""),
+			DB:           getEnvAsInt("REDIS_DB", 0),
+			SessionMode:  SessionMode(getEnv("SESSION_MODE", string(SessionModeBalanced))),
+			PoolSize:     getEnvAsInt("REDIS_POOL_SIZE", 50),
+			MinIdleConns: getEnvAsInt("REDIS_MIN_IDLE_CONNS", 10),
+			DialTimeout:  getEnvAsDuration("REDIS_DIAL_TIMEOUT", 5*time.Second),
+			ReadTimeout:  getEnvAsDuration("REDIS_READ_TIMEOUT", 3*time.Second),
+			WriteTimeout: getEnvAsDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
 		},
 		Auth: AuthConfig{
 			JWTSecret:         getEnv("JWT_SECRET", "changeme"),
