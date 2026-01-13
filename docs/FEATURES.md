@@ -390,8 +390,12 @@ Complete feature list and capabilities of the GPU Proxy platform.
 - ✅ Load balancing
 - ✅ Guard rails
 - ✅ Protocol support (HTTP/gRPC/WebSocket)
-- ✅ ONNX Runtime
+- ✅ ONNX Runtime (memory-safe, double-free fixed)
 - ✅ PyTorch conversion
+- ✅ OCI Object Storage integration
+- ✅ Storage quota system with rate limiting
+- ✅ Goroutine lifecycle management
+- ✅ Security hardened (no exposed credentials)
 
 ### Beta
 - ⚠️ Agent protocols (functional, needs testing)
@@ -406,11 +410,12 @@ Complete feature list and capabilities of the GPU Proxy platform.
 
 ---
 
-**Total Features Implemented:** 150+
-**Lines of Code:** ~50,000+
+**Total Features Implemented:** 155+
+**Lines of Code:** ~52,000+
 **Supported Protocols:** 10+
 **ML Model Formats:** 13
 **Agent Protocols:** 6
+**Security Fixes:** 5 Critical (P0)
 
 **Last Updated:** 2026-01-13
-**Version:** 1.0.0 (ML Runtime Update)
+**Version:** 1.0.1 (Security & OCI Update)

@@ -128,8 +128,23 @@ func (r *ModelRegistry) RegisterModel(model *ServedModel) error {
 	// Track user's models
 	r.userModels[model.UserID] = append(r.userModels[model.UserID], model.ID)
 
-	// Start model loading in background
-	go r.loadModel(model.ID)
+	// Start model loading in background with proper lifecycle management
+	go func() {
+		// Panic recovery to prevent goroutine crashes
+		defer func() {
+			if err := recover(); err != nil {
+				fmt.Printf("PANIC in model loading goroutine for model %s: %v\n", model.ID, err)
+				r.UpdateModelStatus(model.ID, "error")
+			}
+		}()
+
+		// Create context with timeout to prevent hung goroutines
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		// Load model with context
+		r.loadModelWithContext(ctx, model.ID)
+	}()
 
 	return nil
 }
@@ -241,10 +256,18 @@ func (r *ModelRegistry) RecordInference(modelID string, latencyMs float64, succe
 	model.UpdatedAt = time.Now()
 }
 
-// loadModel loads a model into the appropriate runtime
+// loadModel loads a model into the appropriate runtime (deprecated - use loadModelWithContext)
 func (r *ModelRegistry) loadModel(modelID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	r.loadModelWithContext(ctx, modelID)
+}
+
+// loadModelWithContext loads a model into the appropriate runtime with context support
+func (r *ModelRegistry) loadModelWithContext(ctx context.Context, modelID string) {
 	model, err := r.GetModel(modelID)
 	if err != nil {
+		fmt.Printf("Failed to get model %s: %v\n", modelID, err)
 		return
 	}
 
@@ -260,11 +283,17 @@ func (r *ModelRegistry) loadModel(modelID string) {
 	// - ONNX Runtime
 	// - Custom Python runtime
 
-	// Simulate loading delay
-	time.Sleep(2 * time.Second)
-
-	// Mark as ready
-	r.UpdateModelStatus(modelID, "ready")
+	// Simulate loading delay with context cancellation support
+	select {
+	case <-time.After(2 * time.Second):
+		// Loading completed
+		r.UpdateModelStatus(modelID, "ready")
+	case <-ctx.Done():
+		// Context cancelled or timed out
+		fmt.Printf("Model loading cancelled/timed out for %s: %v\n", modelID, ctx.Err())
+		r.UpdateModelStatus(modelID, "error")
+		return
+	}
 }
 
 // isValidFormat checks if a model format is supported

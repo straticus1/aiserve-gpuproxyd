@@ -318,6 +318,22 @@ torch.save(model, "test_model.pt")
    - Need full model with `torch.save(model, path)`
    - **Workaround:** Document requirement for users
 
+## 🔒 Security & Stability Fixes (2026-01-13)
+
+### Fixed Issues
+
+1. **ONNX Double-Free Vulnerability** ✅
+   - **Issue:** Tensors destroyed twice causing segmentation faults
+   - **Location:** `internal/ml/onnx_runtime.go:234`
+   - **Fix:** Removed individual defer statements, use single cleanup loop
+   - **Impact:** Prevents crashes during ONNX inference
+
+2. **Model Loading Memory Leaks** ✅
+   - **Issue:** Fire-and-forget goroutines with no panic recovery
+   - **Location:** `internal/models/serve.go:132`
+   - **Fix:** Added panic recovery, 5-minute context timeout, proper error handling
+   - **Impact:** Prevents hung goroutines and memory leaks during model loading
+
 ---
 
 ## 📚 References

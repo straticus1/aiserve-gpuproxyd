@@ -7,6 +7,9 @@ bin/
 
 # Test and local config files
 .env
+.env.production
+.env.local
+.env.*.local
 .local_admin
 *.local
 

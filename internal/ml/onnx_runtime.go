@@ -231,7 +231,7 @@ func (r *ONNXRuntime) Predict(ctx context.Context, modelID string, input map[str
 		if err != nil {
 			return nil, fmt.Errorf("failed to create output tensor: %w", err)
 		}
-		defer emptyTensor.Destroy()
+		// Note: Cleanup happens in defer block below, not here (avoid double-free)
 		outputValues[i] = emptyTensor
 	}
 

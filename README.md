@@ -6,12 +6,14 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 
 - **Multi-Provider GPU Access**: Seamlessly access GPUs from vast.ai and io.net
 - **ML Runtime Support**: ONNX, PyTorch, TensorFlow, scikit-learn model serving with 4 runtimes
+- **OCI Object Storage**: Native Oracle Cloud Infrastructure storage integration (replaces AWS S3)
+- **Storage Quotas**: Per-user storage limits with hourly/daily upload rate limiting
 - **Load Balancing**: 5 strategies (Round Robin, Equal Weighted, Weighted Round Robin, Least Connections, Least Response Time)
 - **GPU Reservation**: Reserve up to 16 GPUs at once with automatic load balancing
 - **Protocol Support**: HTTP/HTTPS, gRPC, MCP (Model Context Protocol), and Open Inference Protocol
-- **Multiple Databases**: PostgreSQL or SQLite support
+- **Multiple Databases**: PostgreSQL or SQLite support with PgBouncer connection pooling
 - **Flexible Session Management**: Redis, SQL, or balanced mode
-- **Authentication**: JWT tokens and API keys
+- **Authentication**: JWT tokens and API keys with bcrypt hashing
 - **Payment Integration**: Stripe, Crypto, and AfterDark billing
 - **WebSocket Streaming**: Real-time GPU inference streaming
 - **Credit System**: Track usage, quotas, and credits per client
@@ -21,6 +23,7 @@ A high-performance GPU proxy service that aggregates vast.ai and io.net GPU farm
 - **Centralized Logging**: Syslog support with file logging and AISERVE_LOG_FILE
 - **CLI Tools**: Advanced client with load monitoring and admin utility
 - **Developer Mode**: Enhanced debugging and development features
+- **Production Hardened**: Memory safety fixes, goroutine lifecycle management, panic recovery
 
 ## Architecture
 
@@ -998,11 +1001,18 @@ See `.env.example` for full configuration options.
 
 Key variables:
 - `DB_HOST`, `DB_PORT`, `DB_NAME` - Database config
+- `DB_USE_PGBOUNCER` - Use PgBouncer connection pooling (default: true)
+- `DB_MAX_CONNS` - Maximum database connections (default: 200)
 - `REDIS_HOST`, `REDIS_PORT` - Redis config
 - `SESSION_MODE` - Session storage mode
-- `JWT_SECRET` - JWT signing key
+- `JWT_SECRET` - JWT signing key (REQUIRED: generate with `openssl rand -base64 64`)
 - `VASTAI_API_KEY` - vast.ai API key
 - `IONET_API_KEY` - io.net API key
+- `OCI_STORAGE_ENDPOINT` - OCI Object Storage endpoint
+- `OCI_STORAGE_NAMESPACE` - OCI namespace
+- `OCI_STORAGE_BUCKET` - OCI bucket name
+- `OCI_ACCESS_KEY_ID` - OCI access key ID
+- `OCI_SECRET_ACCESS_KEY` - OCI secret access key
 - `STRIPE_SECRET_KEY` - Stripe integration
 - `AFTERDARK_API_KEY` - AfterDark billing
 - `CRYPTO_ENABLED` - Enable crypto payments

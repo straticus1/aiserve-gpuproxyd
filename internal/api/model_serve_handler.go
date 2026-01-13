@@ -11,6 +11,7 @@ import (
 
 	"github.com/aiserve/gpuproxy/internal/middleware"
 	"github.com/aiserve/gpuproxy/internal/models"
+	"github.com/aiserve/gpuproxy/internal/storage"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -19,6 +20,7 @@ import (
 type ModelServeHandler struct {
 	registry         *models.ModelRegistry
 	inferenceService *models.InferenceService
+	quotaManager     *storage.QuotaManager
 	uploadMaxSize    int64 // Maximum model upload size in bytes
 }
 
@@ -26,12 +28,16 @@ func NewModelServeHandler() *ModelServeHandler {
 	return &ModelServeHandler{
 		registry:         models.GetModelRegistry(),
 		inferenceService: models.NewInferenceService(),
+		quotaManager:     storage.GetQuotaManager(),
 		uploadMaxSize:    10 * 1024 * 1024 * 1024, // 10GB default
 	}
 }
 
 // UploadModel handles model file upload
 func (h *ModelServeHandler) UploadModel(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userID := middleware.GetUserID(r.Context())
+
 	// Parse multipart form (limit to uploadMaxSize)
 	if err := r.ParseMultipartForm(h.uploadMaxSize); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{
@@ -49,6 +55,15 @@ func (h *ModelServeHandler) UploadModel(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	defer file.Close()
+
+	// Check quota and rate limits BEFORE accepting the upload
+	if err := h.quotaManager.CheckUploadAllowed(r.Context(), userID, header.Size); err != nil {
+		respondJSON(w, http.StatusTooManyRequests, map[string]string{
+			"error": fmt.Sprintf("Upload denied: %v", err),
+			"quota": "Check /api/v1/quota for current limits",
+		})
+		return
+	}
 
 	// Get metadata from form
 	modelName := r.FormValue("name")
@@ -72,9 +87,6 @@ func (h *ModelServeHandler) UploadModel(w http.ResponseWriter, r *http.Request) 
 
 	gpuRequired := r.FormValue("gpu_required") == "true"
 	gpuType := r.FormValue("gpu_type")
-
-	// Get user ID from context
-	userID := middleware.GetUserID(r.Context())
 
 	// Generate model ID
 	modelID := uuid.New().String()
@@ -105,6 +117,9 @@ func (h *ModelServeHandler) UploadModel(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
+
+	// Record successful upload in quota manager
+	h.quotaManager.RecordUpload(userID, header.Size)
 
 	// Register model
 	model := &models.ServedModel{
@@ -183,12 +198,39 @@ func (h *ModelServeHandler) DeleteModel(w http.ResponseWriter, r *http.Request) 
 
 	userID := middleware.GetUserID(r.Context())
 
+	// Get model to retrieve file size before deletion
+	model, err := h.registry.GetModel(modelID)
+	if err != nil {
+		respondJSON(w, http.StatusNotFound, map[string]string{
+			"error": "Model not found",
+		})
+		return
+	}
+
+	// Verify ownership
+	if model.UserID != userID.String() {
+		respondJSON(w, http.StatusForbidden, map[string]string{
+			"error": "Access denied",
+		})
+		return
+	}
+
+	// Get file size for quota tracking
+	var fileSize int64
+	if fileInfo, err := os.Stat(model.FilePath); err == nil {
+		fileSize = fileInfo.Size()
+	}
+
+	// Delete model
 	if err := h.registry.DeleteModel(modelID, userID.String()); err != nil {
 		respondJSON(w, http.StatusBadRequest, map[string]string{
 			"error": err.Error(),
 		})
 		return
 	}
+
+	// Update quota manager
+	h.quotaManager.RecordDeletion(userID, fileSize)
 
 	respondJSON(w, http.StatusOK, map[string]string{
 		"message": "Model deleted successfully",
@@ -347,4 +389,12 @@ func (h *ModelServeHandler) SupportedFormats(w http.ResponseWriter, r *http.Requ
 		"formats": formats,
 		"count":   len(formats),
 	})
+}
+
+// GetQuota returns current quota and usage information for the authenticated user
+func (h *ModelServeHandler) GetQuota(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	quotaInfo := h.quotaManager.GetQuotaInfo(userID)
+
+	respondJSON(w, http.StatusOK, quotaInfo)
 }
