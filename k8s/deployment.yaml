@@ -1,0 +1,85 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modeltrack
+  namespace: default
+  labels:
+    app: modeltrack
+    version: v2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: modeltrack
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: modeltrack
+        version: v2
+    spec:
+      containers:
+      - name: modeltrack
+        image: us-ashburn-1.ocir.io/idd2oizp8xvc/web3dns/aiserve-farm:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: PORT
+          value: "8080"
+        - name: NODE_ENV
+          value: production
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 101  # nginx user
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: modeltrack
+  namespace: default
+  labels:
+    app: modeltrack
+spec:
+  type: ClusterIP
+  selector:
+    app: modeltrack
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP

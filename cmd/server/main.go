@@ -131,6 +131,7 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(authService, cfg.Auth.JWTSecret)
 	rateLimiter := middleware.NewRateLimiter(redis)
 	guardRails := middleware.NewGuardRails(redis, &cfg.GuardRails)
+	ipAccessControl := middleware.NewIPAccessControl(db.Pool)
 	mcpServer := mcp.NewMCPServer(gpuService, billingService, authService, guardRails)
 	a2aServer := a2a.NewA2AServer(gpuService, billingService, authService, guardRails)
 	acpServer := acp.NewACPServer(gpuService, billingService, authService, guardRails)
@@ -149,6 +150,7 @@ func main() {
 	guardRailsHandler := api.NewGuardRailsHandler(guardRails)
 	mcpHandler := api.NewMCPHandler(mcpServer)
 	agentHandler := api.NewAgentHandler(a2aServer, acpServer, cuicServer, fipaServer, kqmlServer, langchainServer)
+	ipAccessHandler := api.NewIPAccessHandler(db)
 
 	// Initialize model serving if enabled
 	var modelServeHandler *api.ModelServeHandler
@@ -195,6 +197,7 @@ func main() {
 
 	protected := apiRouter.PathPrefix("").Subrouter()
 	protected.Use(authMiddleware.RequireAuth)
+	protected.Use(ipAccessControl.Middleware()) // IP access control after auth
 	protected.Use(rateLimiter.Limit(100))
 	protected.Use(guardRails.Middleware())
 
@@ -233,6 +236,18 @@ func main() {
 	protected.HandleFunc("/guardrails/spending/check", guardRailsHandler.CheckSpending).Methods("POST")
 	protected.HandleFunc("/guardrails/spending/reset", guardRailsHandler.ResetSpending).Methods("POST")
 
+	// IP Access Control endpoints
+	protected.HandleFunc("/ip-access/config", ipAccessHandler.GetConfig).Methods("GET")
+	protected.HandleFunc("/ip-access/config", ipAccessHandler.UpdateConfig).Methods("PUT")
+	protected.HandleFunc("/ip-access/allowlist", ipAccessHandler.ListAllowlist).Methods("GET")
+	protected.HandleFunc("/ip-access/allowlist", ipAccessHandler.AddAllowlist).Methods("POST")
+	protected.HandleFunc("/ip-access/allowlist/{id}", ipAccessHandler.RemoveAllowlist).Methods("DELETE")
+	protected.HandleFunc("/ip-access/denylist", ipAccessHandler.ListDenylist).Methods("GET")
+	protected.HandleFunc("/ip-access/denylist", ipAccessHandler.AddDenylist).Methods("POST")
+	protected.HandleFunc("/ip-access/denylist/{id}", ipAccessHandler.RemoveDenylist).Methods("DELETE")
+	protected.HandleFunc("/ip-access/check", ipAccessHandler.CheckIP).Methods("POST")
+	protected.HandleFunc("/ip-access/log", ipAccessHandler.GetAccessLog).Methods("GET")
+
 	protected.HandleFunc("/mcp", mcpHandler.HandleMCP).Methods("POST")
 	protected.HandleFunc("/mcp/sse", mcpHandler.HandleSSE).Methods("GET")
 
@@ -262,12 +277,14 @@ func main() {
 	router.HandleFunc("/agent/discover", agentHandler.HandleAgentDiscovery).Methods("GET")
 	router.HandleFunc("/ws", wsHandler.HandleConnection)
 
-	if developerMode {
-		router.PathPrefix("/").Handler(http.FileServer(http.Dir("./web/admin")))
-	}
+	// Serve admin dashboard at /admin
+	router.PathPrefix("/admin").Handler(http.StripPrefix("/admin", http.FileServer(http.Dir("./web/admin"))))
 
-	// Initialize gRPC server
-	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService, cuicServer)
+	// Serve main website (must be last to catch all other routes)
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./web")))
+
+	// Initialize gRPC server with IP access control
+	grpcSrv := grpcServer.NewServer(authService, gpuService, protocolHandler, billingService, lbService, cuicServer, ipAccessControl)
 
 	// Format address properly for IPv6 (needs brackets)
 	grpcHost := cfg.Server.Host

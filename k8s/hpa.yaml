@@ -1,0 +1,322 @@
+---
+# Horizontal Pod Autoscaler for AIServe.Farm
+# Scales from 3 to 50 pods based on load
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aiserve-gpuproxy-hpa
+  namespace: default
+  labels:
+    app: aiserve-gpuproxy
+    component: autoscaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aiserve-gpuproxy
+  minReplicas: 3    # Minimum for high availability
+  maxReplicas: 50   # Maximum for cost control
+
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale at 70% CPU
+
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Scale at 80% memory
+
+  # Custom metric: requests per second (requires metrics server)
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: "1000"  # Scale when >1000 req/s per pod
+
+  # Scaling behavior
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 50  # Scale down max 50% at a time
+        periodSeconds: 60
+      - type: Pods
+        value: 2   # Or max 2 pods at a time
+        periodSeconds: 60
+      selectPolicy: Min  # Use the minimum of the two policies
+
+    scaleUp:
+      stabilizationWindowSeconds: 0  # Scale up immediately
+      policies:
+      - type: Percent
+        value: 100  # Scale up 100% (double) at a time
+        periodSeconds: 30
+      - type: Pods
+        value: 4    # Or add 4 pods at a time
+        periodSeconds: 30
+      selectPolicy: Max  # Use the maximum of the two policies
+
+---
+# Vertical Pod Autoscaler (Optional - for resource optimization)
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: aiserve-gpuproxy-vpa
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aiserve-gpuproxy
+  updatePolicy:
+    updateMode: "Auto"  # Auto-update pods with new resource limits
+  resourcePolicy:
+    containerPolicies:
+    - containerName: aiserve-gpuproxy
+      minAllowed:
+        cpu: 100m
+        memory: 128Mi
+      maxAllowed:
+        cpu: 2000m
+        memory: 2Gi
+      controlledResources: ["cpu", "memory"]
+
+---
+# PodDisruptionBudget - Ensures availability during rolling updates
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aiserve-gpuproxy-pdb
+  namespace: default
+spec:
+  minAvailable: 2  # Always keep at least 2 pods running
+  selector:
+    matchLabels:
+      app: aiserve-gpuproxy
+
+---
+# Updated Deployment with resource requests/limits for autoscaling
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiserve-gpuproxy
+  namespace: default
+  labels:
+    app: aiserve-gpuproxy
+    version: v2.0
+spec:
+  replicas: 3  # Starting replicas (HPA will adjust)
+  selector:
+    matchLabels:
+      app: aiserve-gpuproxy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2        # Add 2 extra pods during update
+      maxUnavailable: 0  # Never take down existing pods
+  template:
+    metadata:
+      labels:
+        app: aiserve-gpuproxy
+        version: v2.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      # Affinity rules for better distribution
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - aiserve-gpuproxy
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: aiserve-gpuproxy
+        image: us-ashburn-1.ocir.io/idd2oizp8xvc/web3dns/aiserve-gpuproxy:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: grpc
+          protocol: TCP
+
+        # Resource requests/limits (required for HPA)
+        resources:
+          requests:
+            cpu: 200m      # Minimum CPU
+            memory: 256Mi  # Minimum memory
+          limits:
+            cpu: 1000m     # Maximum CPU (1 core)
+            memory: 1Gi    # Maximum memory
+
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        # Startup probe for slow starts
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30  # 150 seconds total
+
+        # Environment variables
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: GRPC_PORT
+          value: "9090"
+        - name: ENVIRONMENT
+          value: "production"
+
+        # Database configuration
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: host
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: database
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: password
+
+        # Enhanced database settings for high load
+        - name: DB_MAX_CONNS
+          value: "100"
+        - name: DB_MIN_CONNS
+          value: "25"
+        - name: DB_MAX_CONN_LIFETIME
+          value: "30m"
+        - name: DB_MAX_CONN_IDLE_TIME
+          value: "10m"
+
+        # Redis configuration
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: host
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_POOL_SIZE
+          value: "500"  # Increased for high load
+        - name: REDIS_MIN_IDLE_CONNS
+          value: "100"
+
+        # Circuit breaker settings
+        - name: CIRCUIT_BREAKER_MAX_REQUESTS
+          value: "3"
+        - name: CIRCUIT_BREAKER_TIMEOUT
+          value: "30s"
+        - name: CIRCUIT_BREAKER_FAILURE_THRESHOLD
+          value: "0.6"
+
+        # Retry settings
+        - name: RETRY_MAX_ATTEMPTS
+          value: "3"
+        - name: RETRY_INITIAL_BACKOFF
+          value: "100ms"
+        - name: RETRY_MAX_BACKOFF
+          value: "10s"
+
+        # JWT configuration
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: secret
+        - name: JWT_EXPIRATION
+          value: "24h"
+
+        # Graceful shutdown
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 15"]
+
+      # Graceful termination period
+      terminationGracePeriodSeconds: 30
+
+      # Image pull secrets for private registry
+      imagePullSecrets:
+      - name: ocir-credentials
+
+---
+# Service for load balancing
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiserve-gpuproxy
+  namespace: default
+  labels:
+    app: aiserve-gpuproxy
+spec:
+  type: ClusterIP
+  selector:
+    app: aiserve-gpuproxy
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: grpc
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  sessionAffinity: ClientIP  # Sticky sessions for WebSocket
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours

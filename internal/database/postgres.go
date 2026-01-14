@@ -243,6 +243,9 @@ func (db *PostgresDB) Migrate() error {
 			WHERE is_active = true`,
 	}
 
+	// Append IP access control migrations
+	queries = append(queries, ipAccessControlMigrations...)
+
 	for _, query := range queries {
 		if _, err := db.Pool.Exec(ctx, query); err != nil {
 			return fmt.Errorf("migration failed: %w", err)

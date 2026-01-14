@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 )
 
@@ -36,6 +37,7 @@ type Server struct {
 	lbService       *loadbalancer.LoadBalancerService
 	cuicServer      *cuic.CUICServer
 	grpcServer      *grpc.Server
+	ipAccessControl *middleware.IPAccessControl
 }
 
 // NewServer creates a new gRPC server instance
@@ -46,6 +48,7 @@ func NewServer(
 	billingService *billing.Service,
 	lbService *loadbalancer.LoadBalancerService,
 	cuicServer *cuic.CUICServer,
+	ipAccessControl *middleware.IPAccessControl,
 ) *Server {
 	return &Server{
 		authService:     authService,
@@ -54,6 +57,7 @@ func NewServer(
 		billingService:  billingService,
 		lbService:       lbService,
 		cuicServer:      cuicServer,
+		ipAccessControl: ipAccessControl,
 	}
 }
 
@@ -142,34 +146,57 @@ func (s *Server) authInterceptor(ctx context.Context, req interface{}, info *grp
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
+	var userID string
+
 	// Check for API key
 	apiKeys := md.Get("x-api-key")
 	if len(apiKeys) > 0 {
 		user, err := s.authService.ValidateAPIKey(ctx, apiKeys[0])
 		if err == nil {
-			ctx = context.WithValue(ctx, "user_id", user.ID)
-			return handler(ctx, req)
+			userID = user.ID
+			ctx = context.WithValue(ctx, "user_id", userID)
 		}
 	}
 
-	// Check for JWT token
-	tokens := md.Get("authorization")
-	if len(tokens) == 0 {
-		return nil, status.Errorf(codes.Unauthenticated, "missing authorization token")
+	// Check for JWT token if no API key
+	if userID == "" {
+		tokens := md.Get("authorization")
+		if len(tokens) == 0 {
+			return nil, status.Errorf(codes.Unauthenticated, "missing authorization token")
+		}
+
+		// Remove "Bearer " prefix if present
+		token := tokens[0]
+		if len(token) > 7 && token[:7] == "Bearer " {
+			token = token[7:]
+		}
+
+		claims, err := auth.ValidateToken(token, s.authService.GetJWTSecret())
+		if err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+		}
+
+		userID = claims.UserID
+		ctx = context.WithValue(ctx, "user_id", userID)
 	}
 
-	// Remove "Bearer " prefix if present
-	token := tokens[0]
-	if len(token) > 7 && token[:7] == "Bearer " {
-		token = token[7:]
+	// Check IP access control
+	if s.ipAccessControl != nil && userID != "" {
+		clientIP := extractGRPCClientIP(ctx)
+		if clientIP != "" {
+			result, err := s.ipAccessControl.CheckAccess(ctx, userID, clientIP)
+			if err != nil {
+				log.Printf("IP access check error for user %s from %s: %v", userID, clientIP, err)
+				return nil, status.Errorf(codes.Internal, "IP access check failed")
+			}
+
+			if !result.Allowed {
+				log.Printf("gRPC IP access denied for user %s from %s: %s", userID, clientIP, result.Reason)
+				return nil, status.Errorf(codes.PermissionDenied, "Access denied: %s", result.Reason)
+			}
+		}
 	}
 
-	claims, err := auth.ValidateToken(token, s.authService.GetJWTSecret())
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-	}
-
-	ctx = context.WithValue(ctx, "user_id", claims.UserID)
 	return handler(ctx, req)
 }
 
@@ -206,6 +233,35 @@ func (s *Server) streamAuthInterceptor(srv interface{}, ss grpc.ServerStream, in
 	}
 
 	return handler(srv, ss)
+}
+
+// extractGRPCClientIP extracts the client IP from gRPC context
+func extractGRPCClientIP(ctx context.Context) string {
+	// Try to get peer info from context
+	if p, ok := peer.FromContext(ctx); ok {
+		if tcpAddr, ok := p.Addr.(*net.TCPAddr); ok {
+			return tcpAddr.IP.String()
+		}
+		// Fallback: parse string representation
+		addr := p.Addr.String()
+		if host, _, err := net.SplitHostPort(addr); err == nil {
+			return host
+		}
+		return addr
+	}
+
+	// Check for X-Forwarded-For in metadata (if behind proxy)
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if xffVals := md.Get("x-forwarded-for"); len(xffVals) > 0 {
+			// Take the first IP from X-Forwarded-For
+			return xffVals[0]
+		}
+		if xriVals := md.Get("x-real-ip"); len(xriVals) > 0 {
+			return xriVals[0]
+		}
+	}
+
+	return ""
 }
 
 // getUserID extracts user ID from context
